@@ -58,7 +58,7 @@ export const SocialConnection: React.FC = () => {
   ]);
 
   const [n8nUrl, setN8nUrl] = useState('');
-  const [bundleUrl, setBundleUrl] = useState('');
+  const [bundleUrl, setBundleUrl] = useState('https://social-up.dualis.love/bundle');
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   // Load state from local storage on mount
