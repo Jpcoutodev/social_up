@@ -57,6 +57,8 @@ export const SocialConnection: React.FC = () => {
     }
   ]);
 
+  const [n8nUrl, setN8nUrl] = useState('');
+  const [bundleUrl, setBundleUrl] = useState('');
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   // Load state from local storage on mount
@@ -70,27 +72,40 @@ export const SocialConnection: React.FC = () => {
         username: savedState[acc.id]?.username
       })));
     }
+
+    // Load n8n config
+    const savedN8n = localStorage.getItem('n8n_config');
+    if (savedN8n) {
+      const config = JSON.parse(savedN8n);
+      setN8nUrl(config.webhookUrl || '');
+      setBundleUrl(config.bundleUrl || '');
+    }
   }, []);
+
+  const saveN8nConfig = () => {
+    localStorage.setItem('n8n_config', JSON.stringify({ webhookUrl: n8nUrl, bundleUrl }));
+    alert('n8n Configuration Saved!');
+  };
 
   const handleConnect = (id: string) => {
     setLoadingId(id);
-    
+
     // Simulate OAuth Delay
     setTimeout(() => {
       const mockUsername = `@user_${Math.floor(Math.random() * 1000)}`;
-      
+
       setAccounts(prev => {
-        const newAccounts = prev.map(acc => 
+        const newAccounts = prev.map(acc =>
           acc.id === id ? { ...acc, connected: true, username: mockUsername } : acc
         );
-        
+
         // Save to local storage
         const storageState = newAccounts.reduce((acc, curr) => ({
           ...acc,
           [curr.id]: { connected: curr.connected, username: curr.username }
         }), {});
         localStorage.setItem('connected_socials', JSON.stringify(storageState));
-        
+
         return newAccounts;
       });
       setLoadingId(null);
@@ -99,16 +114,16 @@ export const SocialConnection: React.FC = () => {
 
   const handleDisconnect = (id: string) => {
     setAccounts(prev => {
-      const newAccounts = prev.map(acc => 
+      const newAccounts = prev.map(acc =>
         acc.id === id ? { ...acc, connected: false, username: undefined } : acc
       );
-      
+
       const storageState = newAccounts.reduce((acc, curr) => ({
         ...acc,
         [curr.id]: { connected: curr.connected, username: curr.username }
       }), {});
       localStorage.setItem('connected_socials', JSON.stringify(storageState));
-      
+
       return newAccounts;
     });
   };
@@ -126,14 +141,55 @@ export const SocialConnection: React.FC = () => {
         </div>
       </div>
 
+      {/* n8n Configuration Section */}
+      <div className="mb-8 bg-slate-900/50 border border-purple-500/30 p-6 rounded-xl">
+        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+          ⚡ n8n Automation Setup
+        </h3>
+        <p className="text-slate-400 text-sm mb-4">
+          Configure your n8n Webhook and Hosted Bundle to enable Cloud Rendering & Posting.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">n8n Webhook URL (POST)</label>
+            <input
+              type="text"
+              value={n8nUrl}
+              onChange={(e) => setN8nUrl(e.target.value)}
+              placeholder="https://n8n.your-domain.com/webhook/..."
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-purple-500 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Remotion Bundle URL (Vercel/Netlify)</label>
+            <input
+              type="text"
+              value={bundleUrl}
+              onChange={(e) => setBundleUrl(e.target.value)}
+              placeholder="https://my-video-project.vercel.app/bundle"
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-purple-500 outline-none"
+            />
+          </div>
+        </div>
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={saveN8nConfig}
+            className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-colors"
+          >
+            Save Configuration
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-6">
         {accounts.map((account) => (
-          <div 
-            key={account.id} 
+          <div
+            key={account.id}
             className={`
               relative overflow-hidden rounded-xl border transition-all duration-300
-              ${account.connected 
-                ? 'bg-slate-800/80 border-slate-600 shadow-lg shadow-purple-900/10' 
+              ${account.connected
+                ? 'bg-slate-800/80 border-slate-600 shadow-lg shadow-purple-900/10'
                 : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'}
             `}
           >
@@ -144,17 +200,17 @@ export const SocialConnection: React.FC = () => {
               </div>
               {/* Status Badge */}
               <div className="absolute top-4 right-4">
-                 {account.connected ? (
-                   <div className="bg-black/30 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-bold text-white border border-white/20">
-                     <CheckCircle2 size={12} className="text-green-400" />
-                     CONNECTED
-                   </div>
-                 ) : (
-                   <div className="bg-black/30 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-bold text-slate-400 border border-white/10">
-                     <div className="w-2 h-2 rounded-full bg-slate-500" />
-                     DISCONNECTED
-                   </div>
-                 )}
+                {account.connected ? (
+                  <div className="bg-black/30 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-bold text-white border border-white/20">
+                    <CheckCircle2 size={12} className="text-green-400" />
+                    CONNECTED
+                  </div>
+                ) : (
+                  <div className="bg-black/30 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-bold text-slate-400 border border-white/10">
+                    <div className="w-2 h-2 rounded-full bg-slate-500" />
+                    DISCONNECTED
+                  </div>
+                )}
               </div>
             </div>
 
@@ -177,25 +233,25 @@ export const SocialConnection: React.FC = () => {
               <div className="flex gap-3">
                 {account.connected ? (
                   <>
-                     <button className="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
-                        <ExternalLink size={16} />
-                        View Channel
-                     </button>
-                     <button 
+                    <button className="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
+                      <ExternalLink size={16} />
+                      View Channel
+                    </button>
+                    <button
                       onClick={() => handleDisconnect(account.id)}
                       className="px-4 py-2.5 bg-red-900/20 hover:bg-red-900/40 border border-red-800/50 text-red-400 text-sm font-medium rounded-lg transition-colors"
-                     >
-                       <LogOut size={18} />
-                     </button>
+                    >
+                      <LogOut size={18} />
+                    </button>
                   </>
                 ) : (
-                  <button 
+                  <button
                     onClick={() => handleConnect(account.id)}
                     disabled={loadingId !== null}
                     className={`
                       w-full py-3 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2
-                      ${loadingId === account.id 
-                        ? 'bg-slate-700 text-slate-400' 
+                      ${loadingId === account.id
+                        ? 'bg-slate-700 text-slate-400'
                         : 'bg-white hover:bg-slate-200 text-slate-900'}
                     `}
                   >

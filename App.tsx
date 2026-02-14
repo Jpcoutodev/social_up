@@ -1,12 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { SocialConnection } from './components/SocialConnection';
-import { SocialFeed } from './components/SocialFeed';
-import { Activity, LayoutDashboard, Settings2, Sparkles, Share2, Users } from 'lucide-react';
+import { AuthScreen } from './components/AuthScreen';
+import { MyVideos } from './components/MyVideos';
+import { Activity, LayoutDashboard, Settings2, Sparkles, Share2, LogOut, FileVideo } from 'lucide-react';
+import { supabase } from './src/lib/supabase';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'connection' | 'social' | 'community'>('dashboard');
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'my-videos' | 'connection' | 'social'>('dashboard');
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-900 text-white">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <AuthScreen onAuthSuccess={() => { }} />;
+  }
 
   return (
     <div className="flex h-screen bg-slate-900 text-white overflow-hidden font-sans">
@@ -36,11 +71,11 @@ const App: React.FC = () => {
           />
 
           <NavItem
-            active={activeTab === 'community'}
-            onClick={() => setActiveTab('community')}
-            icon={<Users size={20} />}
-            label="Community"
-            description="Social Feed"
+            active={activeTab === 'my-videos'}
+            onClick={() => setActiveTab('my-videos')}
+            icon={<FileVideo size={20} />}
+            label="My Videos"
+            description="Saved Library"
           />
 
           <NavItem
@@ -61,9 +96,20 @@ const App: React.FC = () => {
 
         </nav>
 
+        {/* User / Logout */}
+        <div className="p-4 border-t border-slate-800">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-900 rounded-lg transition-colors"
+          >
+            <LogOut size={18} />
+            <span className="hidden lg:block text-sm font-medium">Log Out</span>
+          </button>
+        </div>
+
         {/* Footer Info */}
-        <div className="p-4 border-t border-slate-800 hidden lg:block">
-          <div className="bg-slate-900 rounded-lg p-3 border border-slate-800/50">
+        <div className="p-4 pt-0 border-t border-slate-800 hidden lg:block">
+          <div className="bg-slate-900 rounded-lg p-3 border border-slate-800/50 mt-4">
             <div className="flex items-center gap-2 mb-1">
               <Sparkles size={14} className="text-yellow-400" />
               <span className="text-xs font-semibold text-slate-300">Pro Plan</span>
@@ -83,11 +129,15 @@ const App: React.FC = () => {
           <h1 className="text-xl font-semibold text-white capitalize">
             {activeTab === 'dashboard' ? 'Content Generator' :
               activeTab === 'social' ? 'Social Integrations' :
-                activeTab === 'community' ? 'Community Feed' : 'System Connection'}
+                activeTab === 'my-videos' ? 'My Library' : 'System Connection'}
           </h1>
           <div className="absolute right-8 flex items-center gap-3">
+            <div className="text-right hidden sm:block">
+              <p className="text-xs text-slate-400">Logged in as</p>
+              <p className="text-sm font-medium text-white">{session.user.email}</p>
+            </div>
             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center text-xs font-bold ring-2 ring-slate-800">
-              AI
+              {session.user.email?.[0].toUpperCase()}
             </div>
           </div>
         </header>
@@ -95,8 +145,8 @@ const App: React.FC = () => {
         {/* Content Container */}
         <main className="flex-1 overflow-hidden relative">
           {activeTab === 'dashboard' && <Dashboard />}
+          {activeTab === 'my-videos' && <MyVideos />}
           {activeTab === 'social' && <SocialConnection />}
-          {activeTab === 'community' && <SocialFeed />}
           {activeTab === 'connection' && <ConnectionStatus />}
         </main>
 
@@ -104,6 +154,7 @@ const App: React.FC = () => {
     </div>
   );
 };
+
 
 // Subcomponent for Navigation Items
 interface NavItemProps {
