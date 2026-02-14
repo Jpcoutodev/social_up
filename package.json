@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "build:remotion": "npx remotion bundle src/index.tsx bundle"
+    "build:remotion": "npx remotion bundle src/remotion/index.tsx bundle"
   },
   "dependencies": {
     "@google/genai": "^1.41.0",
