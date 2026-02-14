@@ -11,6 +11,7 @@ interface SavedVideo {
     title: string;
     script: VideoScript;
     created_at: string;
+    video_url?: string;
 }
 
 export const MyVideos: React.FC = () => {
@@ -107,6 +108,7 @@ echo "✅ Render Complete! Check the 'out' folder."
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    id: video.id,
                     script: video.script,
                     title: video.title,
                     bundleUrl: bundleUrl,
