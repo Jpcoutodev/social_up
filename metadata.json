@@ -1,0 +1,5 @@
+{
+  "name": "Shorts Factory AI",
+  "description": "An internal tool to generate viral short-form video scripts and visualize them instantly using Gemini AI and Remotion.",
+  "requestFramePermissions": []
+}
