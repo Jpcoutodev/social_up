@@ -1,7 +1,106 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// ============================================
+// Video Storage Helpers
+// ============================================
+
+/**
+ * Upload a video file to Supabase Storage
+ * @param file - Buffer or Blob containing the video data
+ * @param filename - Name for the video file (e.g., "my_video_123.mp4")
+ * @param userId - Optional user ID to organize videos in folders
+ * @returns Promise with the public URL of the uploaded video
+ */
+export async function uploadVideoToStorage(
+  file: Buffer | Blob,
+  filename: string,
+  userId?: string
+): Promise<string> {
+  // Organize videos by user ID if provided
+  const filePath = userId ? `${userId}/${filename}` : filename;
+
+  const { data, error } = await supabase.storage
+    .from('rendered-videos')
+    .upload(filePath, file, {
+      contentType: 'video/mp4',
+      upsert: false, // Don't overwrite existing files
+      cacheControl: '3600', // Cache for 1 hour
+    });
+
+  if (error) {
+    console.error('Upload error:', error);
+    throw new Error(`Failed to upload video: ${error.message}`);
+  }
+
+  // Get public URL
+  const { data: { publicUrl } } = supabase.storage
+    .from('rendered-videos')
+    .getPublicUrl(data.path);
+
+  return publicUrl;
+}
+
+/**
+ * Delete a video from Supabase Storage
+ * @param filePath - Path to the file in storage (e.g., "userId/video.mp4")
+ * @returns Promise<void>
+ */
+export async function deleteVideoFromStorage(filePath: string): Promise<void> {
+  const { error } = await supabase.storage
+    .from('rendered-videos')
+    .remove([filePath]);
+
+  if (error) {
+    console.error('Delete error:', error);
+    throw new Error(`Failed to delete video: ${error.message}`);
+  }
+}
+
+/**
+ * Get a signed URL for a private video (if needed in future)
+ * @param filePath - Path to the file in storage
+ * @param expiresIn - Seconds until the URL expires (default: 1 hour)
+ * @returns Promise with the signed URL
+ */
+export async function getSignedVideoUrl(
+  filePath: string,
+  expiresIn: number = 3600
+): Promise<string> {
+  const { data, error } = await supabase.storage
+    .from('rendered-videos')
+    .createSignedUrl(filePath, expiresIn);
+
+  if (error) {
+    console.error('Signed URL error:', error);
+    throw new Error(`Failed to create signed URL: ${error.message}`);
+  }
+
+  return data.signedUrl;
+}
+
+/**
+ * List all videos for a user
+ * @param userId - User ID to list videos for
+ * @returns Promise with array of video file objects
+ */
+export async function listUserVideos(userId: string) {
+  const { data, error } = await supabase.storage
+    .from('rendered-videos')
+    .list(userId, {
+      limit: 100,
+      offset: 0,
+      sortBy: { column: 'created_at', order: 'desc' },
+    });
+
+  if (error) {
+    console.error('List error:', error);
+    throw new Error(`Failed to list videos: ${error.message}`);
+  }
+
+  return data;
+}

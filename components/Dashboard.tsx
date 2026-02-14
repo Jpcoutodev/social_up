@@ -13,6 +13,7 @@ export const Dashboard: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [progressStatus, setProgressStatus] = useState('');
   const [saving, setSaving] = useState(false);
+  const [rendering, setRendering] = useState(false);
   const [language, setLanguage] = useState<VideoLanguage>('pt-BR');
 
   const [script, setScript] = useState<VideoScript | null>(null);
@@ -151,6 +152,94 @@ echo "✅ Render Complete! Check the 'out' folder."
     }
   };
 
+  const handleRenderMP4 = async () => {
+    if (!script || !topic) return;
+
+    setRendering(true);
+    setProgressStatus('Sending to render server...');
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Use n8n webhook URL from environment or fallback to local server
+      const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'http://localhost:3001/render-video';
+
+      setProgressStatus('Initiating video render...');
+
+      // Send to n8n webhook or local server
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          script,
+          title: topic,
+          user_id: user.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(errorData.message || 'Failed to start render');
+      }
+
+      setProgressStatus('Video is rendering...');
+
+      const result = await response.json();
+
+      // Check if response includes video_url (n8n workflow) or blob (local server)
+      if (result.success && result.video_url) {
+        // n8n workflow response with Supabase Storage URL
+        setProgressStatus('Render complete!');
+
+        // Open video in new tab and trigger download
+        const link = document.createElement('a');
+        link.href = result.video_url;
+        link.download = `${topic.replace(/\s+/g, '_').toLowerCase()}.mp4`;
+        link.target = '_blank';
+        link.click();
+
+        alert(`Video rendered successfully!\n\nVideo URL: ${result.video_url}\n\nThe video has been saved to your library.`);
+      } else if (response.headers.get('content-type')?.includes('video/mp4')) {
+        // Local server response with blob (fallback)
+        setProgressStatus('Downloading video...');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${topic.replace(/\s+/g, '_').toLowerCase()}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        alert('Video downloaded successfully!');
+      } else {
+        throw new Error('Invalid response from render server');
+      }
+
+    } catch (err: any) {
+      console.error('Render error:', err);
+      setProgressStatus('Render failed');
+
+      const errorMessage = err.message || 'Unknown error';
+      const isLocalServer = !import.meta.env.VITE_N8N_WEBHOOK_URL;
+
+      alert(
+        `Failed to render video: ${errorMessage}\n\n` +
+        (isLocalServer
+          ? 'Make sure the render server is running (npm run server)'
+          : 'Please check the n8n workflow and server status')
+      );
+    } finally {
+      setRendering(false);
+      setProgressStatus('');
+    }
+  };
+
   const durationInFrames = script
     ? Math.ceil(script.scenes.reduce((acc, scene) => acc + scene.durationInSeconds, 0) * VIDEO_FPS)
     : 1;
@@ -253,14 +342,24 @@ echo "✅ Render Complete! Check the 'out' folder."
 
           {script && !loading && (
             <div className="space-y-3 pt-4 border-t border-slate-700">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Export MP4</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Export Options</h3>
 
               <button
-                onClick={downloadRenderScript}
-                className="w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center space-x-2 transition-all bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/20"
+                onClick={handleRenderMP4}
+                disabled={rendering}
+                className="w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center space-x-2 transition-all bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-lg shadow-green-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Download size={18} />
-                <span>Download MP4 Generator</span>
+                {rendering ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    <span>Rendering MP4...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={18} />
+                    <span>Download MP4</span>
+                  </>
+                )}
               </button>
 
               <button
@@ -272,13 +371,23 @@ echo "✅ Render Complete! Check the 'out' folder."
                 <span>{saving ? 'Saving...' : 'Save to Library'}</span>
               </button>
 
-              <button
-                onClick={copyRenderCommand}
-                className="w-full py-3 rounded-lg font-medium text-xs flex items-center justify-center space-x-2 transition-all bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600"
-              >
-                {copied ? <Check size={14} className="text-green-400" /> : <Terminal size={14} />}
-                <span>{copied ? "Copied" : "Copy CLI Command"}</span>
-              </button>
+              <div className="pt-2 border-t border-slate-700/50">
+                <button
+                  onClick={downloadRenderScript}
+                  className="w-full py-2 rounded-lg font-medium text-xs flex items-center justify-center space-x-2 transition-all bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600"
+                >
+                  <Terminal size={14} />
+                  <span>Download Shell Script</span>
+                </button>
+
+                <button
+                  onClick={copyRenderCommand}
+                  className="w-full py-2 mt-2 rounded-lg font-medium text-xs flex items-center justify-center space-x-2 transition-all bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600"
+                >
+                  {copied ? <Check size={14} className="text-green-400" /> : <Terminal size={14} />}
+                  <span>{copied ? "Copied" : "Copy CLI Command"}</span>
+                </button>
+              </div>
             </div>
           )}
 

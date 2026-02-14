@@ -1,0 +1,275 @@
+{
+  "name": "Shorts Factory - Video Render",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "render-video",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "shorts-factory-render"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process incoming webhook data\nconst script = $input.item.json.body.script;\nconst title = $input.item.json.body.title;\nconst userId = $input.item.json.body.user_id;\n\n// Generate unique job ID\nconst timestamp = Date.now();\nconst random = Math.random().toString(36).substr(2, 9);\nconst jobId = `video_${timestamp}_${random}`;\n\n// Create safe filename\nconst safeTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();\nconst filename = `${safeTitle}_${timestamp}.mp4`;\nconst filePath = userId ? `${userId}/${filename}` : filename;\n\n// Prepare script JSON for Remotion\nconst scriptJson = JSON.stringify({ script });\n\nreturn {\n  script,\n  title,\n  userId,\n  jobId,\n  filename,\n  filePath,\n  scriptJson,\n  timestamp,\n  bundlePath: `/tmp/bundle-${jobId}`,\n  videoPath: `/tmp/${filename}`\n};"
+      },
+      "name": "Process Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd {{$env.APP_PATH}} && npx remotion bundle src/remotion/index.tsx {{$json.bundlePath}}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "name": "Bundle Remotion",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd {{$env.APP_PATH}} && npx remotion render {{$json.bundlePath}} VideoComposition {{$json.videoPath}} --props='{{$json.scriptJson}}'",
+        "options": {
+          "timeout": 900000
+        }
+      },
+      "name": "Render Video",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "filePath": "={{$json.videoPath}}",
+        "options": {
+          "encoding": "base64"
+        }
+      },
+      "name": "Read Video File",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/storage/v1/object/rendered-videos/{{$json.filePath}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyContentType": "raw",
+        "rawContentType": "video/mp4",
+        "body": "={{$binary.data}}",
+        "options": {
+          "batching": {
+            "batch": {}
+          }
+        }
+      },
+      "name": "Upload to Supabase Storage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "supabase-service-key",
+          "name": "Supabase Service Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the public URL for the uploaded video\nconst supabaseUrl = $env.SUPABASE_URL;\nconst filePath = $json.filePath;\nconst videoUrl = `${supabaseUrl}/storage/v1/object/public/rendered-videos/${filePath}`;\n\nreturn {\n  ...$ json,\n  videoUrl\n};"
+      },
+      "name": "Build Video URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "social_videos",
+        "columns": {
+          "mappings": [
+            {
+              "column": "user_id",
+              "value": "={{$json.userId}}"
+            },
+            {
+              "column": "title",
+              "value": "={{$json.title}}"
+            },
+            {
+              "column": "script",
+              "value": "={{$json.script}}"
+            },
+            {
+              "column": "video_url",
+              "value": "={{$json.videoUrl}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1650, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-creds",
+          "name": "Supabase Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": true,\n  \"video_url\": $json.videoUrl,\n  \"job_id\": $json.jobId,\n  \"filename\": $json.filename\n} }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "command": "rm -f {{$json.videoPath}} && rm -rf {{$json.bundlePath}}",
+        "options": {}
+      },
+      "name": "Cleanup Temp Files",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1850, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": false,\n  \"error\": $json.error.message || 'Unknown error',\n  \"details\": $json.error\n} }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 480]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Input": {
+      "main": [
+        [
+          {
+            "node": "Bundle Remotion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bundle Remotion": {
+      "main": [
+        [
+          {
+            "node": "Render Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render Video": {
+      "main": [
+        [
+          {
+            "node": "Read Video File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Video File": {
+      "main": [
+        [
+          {
+            "node": "Upload to Supabase Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Supabase Storage": {
+      "main": [
+        [
+          {
+            "node": "Build Video URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Video URL": {
+      "main": [
+        [
+          {
+            "node": "Save to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Database": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Cleanup Temp Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-02-14T00:00:00.000Z",
+  "versionId": "1"
+}
