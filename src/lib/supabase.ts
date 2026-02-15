@@ -144,3 +144,51 @@ export async function uploadAudioToStorage(
 
   return publicUrl;
 }
+
+/**
+ * Upload an image file to Supabase Storage
+ * @param base64Data - Base64 encoded image data (with or without data: prefix)
+ * @param filename - Name for the image file (e.g., "image_123.png")
+ * @param userId - Optional user ID to organize images in folders
+ * @returns Promise with the public URL of the uploaded image
+ */
+export async function uploadImageToStorage(
+  base64Data: string,
+  filename: string,
+  userId?: string
+): Promise<string> {
+  // Remove data:image/png;base64, prefix if present
+  const base64String = base64Data.replace(/^data:image\/\w+;base64,/, '');
+
+  // Convert base64 to blob
+  const byteCharacters = atob(base64String);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  const byteArray = new Uint8Array(byteNumbers);
+  const blob = new Blob([byteArray], { type: 'image/png' });
+
+  // Organize images by user ID if provided
+  const filePath = userId ? `${userId}/${filename}` : filename;
+
+  const { data, error } = await supabase.storage
+    .from('video-assets')
+    .upload(filePath, blob, {
+      contentType: 'image/png',
+      upsert: false,
+      cacheControl: '3600',
+    });
+
+  if (error) {
+    console.error('Image upload error:', error);
+    throw new Error(`Failed to upload image: ${error.message}`);
+  }
+
+  // Get public URL
+  const { data: { publicUrl } } = supabase.storage
+    .from('video-assets')
+    .getPublicUrl(data.path);
+
+  return publicUrl;
+}

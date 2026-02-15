@@ -1,5 +1,5 @@
 import { VideoScript, Scene, VideoLanguage } from "../types";
-import { uploadAudioToStorage } from "../src/lib/supabase";
+import { uploadAudioToStorage, uploadImageToStorage } from "../src/lib/supabase";
 import { supabase } from "../src/lib/supabase";
 
 // Helper to handle Fetch with AbortSignal
@@ -98,13 +98,28 @@ export const generateOpenAIScript = async (
         model: "dall-e-3",
         prompt: `Vertical aspect ratio 9:16. Photorealistic, cinematic 4k lighting. Main Character: ${script.characterDescription}. Action: ${scene.imagePrompt}. High detail, no text overlays.`,
         n: 1,
-        size: "1024x1792", 
+        size: "1024x1792",
         response_format: "b64_json",
         quality: "standard" // 'hd' is more expensive, standard is usually fine for video background
       }, apiKey, signal);
-      
+
       if (imageResponse.data?.[0]?.b64_json) {
-        imageUrl = `data:image/png;base64,${imageResponse.data[0].b64_json}`;
+        const base64Image = `data:image/png;base64,${imageResponse.data[0].b64_json}`;
+
+        // Upload image to Supabase Storage instead of using base64
+        const { data: { user } } = await supabase.auth.getUser();
+        const timestamp = Date.now();
+        const imageFilename = `image_scene${i}_${timestamp}.png`;
+
+        try {
+          imageUrl = await uploadImageToStorage(base64Image, imageFilename, user?.id);
+          console.log('Image uploaded to Supabase:', imageUrl);
+        } catch (uploadError) {
+          console.error('Failed to upload image to Supabase:', uploadError);
+          // Fallback to base64 if upload fails
+          imageUrl = base64Image;
+          console.warn('Using base64 as fallback (may cause payload size issues)');
+        }
       }
     } catch (err) {
       console.error("DALL-E 3 failed:", err);
