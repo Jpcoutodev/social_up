@@ -18,6 +18,9 @@ export const MyVideos: React.FC = () => {
     const [videos, setVideos] = useState<SavedVideo[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedVideo, setSelectedVideo] = useState<SavedVideo | null>(null);
+    const [rendering, setRendering] = useState(false);
+    const [renderingId, setRenderingId] = useState<string | null>(null);
+    const [progressStatus, setProgressStatus] = useState('');
 
     useEffect(() => {
         fetchVideos();
@@ -113,7 +116,7 @@ echo "✅ Render Complete! Check the 'out' folder."
                     title: video.title,
                     bundleUrl: bundleUrl,
                     // Optional: Send user email if you want to notify them
-                    //   userEmail: (await supabase.auth.getUser()).data.user?.email 
+                    //   userEmail: (await supabase.auth.getUser()).data.user?.email
                 })
             });
 
@@ -126,6 +129,81 @@ echo "✅ Render Complete! Check the 'out' folder."
             alert('❌ Failed to trigger n8n: ' + err.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleRenderMP4 = async (video: SavedVideo, e: React.MouseEvent) => {
+        e.stopPropagation();
+
+        if (!confirm(`🎬 Render "${video.title}" to MP4?\n\nThis may take 5-10 minutes.`)) return;
+
+        setRendering(true);
+        setRenderingId(video.id);
+        setProgressStatus('Sending to render server...');
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('User not authenticated');
+
+            // Webhook n8n hardcoded (não depende de env var)
+            const webhookUrl = 'http://104.248.210.243:5678/webhook/render-video';
+
+            setProgressStatus('Rendering video... This may take several minutes.');
+
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    script: video.script,
+                    title: video.title,
+                    user_id: user.id,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+                throw new Error(errorData.message || 'Failed to start render');
+            }
+
+            const result = await response.json();
+
+            if (result.success && result.video_url) {
+                setProgressStatus('Render complete!');
+
+                // Atualizar video_url no banco
+                const { error: updateError } = await supabase
+                    .from('social_videos')
+                    .update({ video_url: result.video_url })
+                    .eq('id', video.id);
+
+                if (updateError) throw updateError;
+
+                // Atualizar lista local
+                setVideos(videos.map(v =>
+                    v.id === video.id ? { ...v, video_url: result.video_url } : v
+                ));
+
+                // Download automático
+                const link = document.createElement('a');
+                link.href = result.video_url;
+                link.download = `${video.title.replace(/\s+/g, '_').toLowerCase()}.mp4`;
+                link.target = '_blank';
+                link.click();
+
+                alert(`✅ Video rendered successfully!\n\nURL: ${result.video_url}\n\nThe video has been saved to your library.`);
+            } else {
+                throw new Error('Invalid response from render server');
+            }
+        } catch (err: any) {
+            console.error('Render error:', err);
+            setProgressStatus('');
+            alert(`❌ Failed to render video: ${err.message}\n\nPlease check the n8n workflow and server status.`);
+        } finally {
+            setRendering(false);
+            setRenderingId(null);
+            setProgressStatus('');
         }
     };
 
@@ -197,6 +275,23 @@ echo "✅ Render Complete! Check the 'out' folder."
                                 Download MP4 Script
                             </button>
                             <button
+                                onClick={(e) => handleRenderMP4(selectedVideo, e)}
+                                disabled={rendering && renderingId === selectedVideo.id}
+                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-slate-600 disabled:to-slate-600 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-green-900/40"
+                            >
+                                {rendering && renderingId === selectedVideo.id ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                                        <span>Rendering...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Download size={16} />
+                                        <span>Render MP4</span>
+                                    </>
+                                )}
+                            </button>
+                            <button
                                 onClick={(e) => handleAutoPost(selectedVideo, e)}
                                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-purple-900/40"
                             >
@@ -204,6 +299,12 @@ echo "✅ Render Complete! Check the 'out' folder."
                                 Post via n8n
                             </button>
                         </div>
+
+                        {progressStatus && renderingId === selectedVideo.id && (
+                            <div className="mb-4 px-4 py-3 bg-blue-900/50 border border-blue-700 rounded-lg text-blue-200 text-sm">
+                                {progressStatus}
+                            </div>
+                        )}
 
                         <div className="relative shadow-2xl shadow-purple-900/20 rounded-xl overflow-hidden border-4 border-slate-800 bg-black">
                             <Player
@@ -220,6 +321,20 @@ echo "✅ Render Complete! Check the 'out' folder."
                                 controls
                             />
                         </div>
+
+                        {selectedVideo.video_url && (
+                            <div className="mt-4 p-4 bg-green-900/20 border border-green-700 rounded-lg">
+                                <p className="text-sm text-green-300 mb-2 font-medium">✅ Video rendered and available:</p>
+                                <a
+                                    href={selectedVideo.video_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-green-400 hover:text-green-300 underline break-all"
+                                >
+                                    {selectedVideo.video_url}
+                                </a>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-600">
