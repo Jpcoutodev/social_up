@@ -145,8 +145,8 @@ echo "✅ Render Complete! Check the 'out' folder."
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('User not authenticated');
 
-            // Webhook n8n hardcoded (não depende de env var)
-            const webhookUrl = 'http://104.248.210.243:5678/webhook/render-video';
+            // Webhook n8n com HTTPS
+            const webhookUrl = 'https://n8n.dualis.love/webhook/render-video';
 
             setProgressStatus('Rendering video... This may take several minutes.');
 
