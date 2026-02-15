@@ -104,3 +104,43 @@ export async function listUserVideos(userId: string) {
 
   return data;
 }
+
+// ============================================
+// Audio Storage Helpers
+// ============================================
+
+/**
+ * Upload an audio file to Supabase Storage
+ * @param file - Blob containing the audio data
+ * @param filename - Name for the audio file (e.g., "audio_123.mp3")
+ * @param userId - Optional user ID to organize audios in folders
+ * @returns Promise with the public URL of the uploaded audio
+ */
+export async function uploadAudioToStorage(
+  file: Blob,
+  filename: string,
+  userId?: string
+): Promise<string> {
+  // Organize audios by user ID if provided
+  const filePath = userId ? `${userId}/${filename}` : filename;
+
+  const { data, error } = await supabase.storage
+    .from('video-assets')
+    .upload(filePath, file, {
+      contentType: 'audio/mpeg',
+      upsert: false,
+      cacheControl: '3600',
+    });
+
+  if (error) {
+    console.error('Audio upload error:', error);
+    throw new Error(`Failed to upload audio: ${error.message}`);
+  }
+
+  // Get public URL
+  const { data: { publicUrl } } = supabase.storage
+    .from('video-assets')
+    .getPublicUrl(data.path);
+
+  return publicUrl;
+}

@@ -1,4 +1,6 @@
 import { VideoScript, Scene, VideoLanguage } from "../types";
+import { uploadAudioToStorage } from "../src/lib/supabase";
+import { supabase } from "../src/lib/supabase";
 
 // Helper to handle Fetch with AbortSignal
 const fetchOpenAI = async (endpoint: string, body: any, apiKey: string, signal?: AbortSignal) => {
@@ -133,12 +135,26 @@ export const generateOpenAIScript = async (
         if (ttsResponse.ok) {
             const arrayBuffer = await ttsResponse.arrayBuffer();
             const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
-            audioUrl = URL.createObjectURL(blob);
-            
+
+            // Upload audio to Supabase Storage instead of creating blob URL
+            const { data: { user } } = await supabase.auth.getUser();
+            const timestamp = Date.now();
+            const audioFilename = `audio_scene${i}_${timestamp}.mp3`;
+
+            try {
+                audioUrl = await uploadAudioToStorage(blob, audioFilename, user?.id);
+                console.log('Audio uploaded to Supabase:', audioUrl);
+            } catch (uploadError) {
+                console.error('Failed to upload audio to Supabase:', uploadError);
+                // Fallback to blob URL if upload fails
+                audioUrl = URL.createObjectURL(blob);
+                console.warn('Using blob URL as fallback (will not work for server-side rendering)');
+            }
+
             // OpenAI TTS-1 speed is roughly consistent but we fallback to script estimation if needed
             // Ideally we'd decode the MP3 duration here but that requires AudioContext which is async/browser specific
             // We use a safe padding strategy
-            finalDuration = Math.max(scene.durationInSeconds, 2.0); 
+            finalDuration = Math.max(scene.durationInSeconds, 2.0);
         }
     } catch (err) {
         console.error("OpenAI TTS failed:", err);
