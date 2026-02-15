@@ -2,6 +2,8 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { VideoScript, Scene, AIProvider, VideoLanguage } from "../types";
 import { pcmToWav } from "../utils/audioHelper";
 import { generateOpenAIScript } from "./openaiService";
+import { uploadAudioToStorage, uploadImageToStorage } from "../src/lib/supabase";
+import { supabase } from "../src/lib/supabase";
 
 const LOCAL_STORAGE_KEY_GEMINI = 'gemini_custom_api_key';
 const LOCAL_STORAGE_KEY_OPENAI = 'openai_custom_api_key';
@@ -110,7 +112,7 @@ export const checkConnection = async (): Promise<{ success: boolean; latency: nu
 
 // --- INTERNAL GEMINI GENERATION LOGIC ---
 
-const generateGeminiImage = async (prompt: string, signal?: AbortSignal): Promise<string | undefined> => {
+const generateGeminiImage = async (prompt: string, sceneIndex: number, signal?: AbortSignal): Promise<string | undefined> => {
   const ai = getGeminiClient();
   try {
     const response = await withRetry(async () => {
@@ -120,29 +122,61 @@ const generateGeminiImage = async (prompt: string, signal?: AbortSignal): Promis
             config: { imageConfig: { aspectRatio: "9:16" } }
         });
     }, 3, 2000, signal);
-    
+
     for (const part of response.candidates?.[0]?.content?.parts || []) {
-        if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
+        if (part.inlineData) {
+            const base64Image = `data:image/png;base64,${part.inlineData.data}`;
+
+            // Upload to Supabase Storage
+            const { data: { user } } = await supabase.auth.getUser();
+            const timestamp = Date.now();
+            const imageFilename = `image_scene${sceneIndex}_${timestamp}.png`;
+
+            try {
+                const publicUrl = await uploadImageToStorage(base64Image, imageFilename, user?.id);
+                console.log('Gemini image uploaded to Supabase:', publicUrl);
+                return publicUrl;
+            } catch (uploadError) {
+                console.error('Failed to upload Gemini image:', uploadError);
+                return base64Image; // Fallback
+            }
+        }
     }
   } catch (flashError: any) {
     console.warn("Gemini Flash Image failed, trying Pro...", flashError);
     try {
         const response = await withRetry(async () => {
             return ai.models.generateContent({
-                model: 'gemini-3-pro-image-preview', 
+                model: 'gemini-3-pro-image-preview',
                 contents: { parts: [{ text: prompt }] },
                 config: { imageConfig: { aspectRatio: "9:16", imageSize: "1K" } },
             });
         }, 2, 3000, signal);
         for (const part of response.candidates?.[0]?.content?.parts || []) {
-            if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
+            if (part.inlineData) {
+                const base64Image = `data:image/png;base64,${part.inlineData.data}`;
+
+                // Upload to Supabase Storage
+                const { data: { user } } = await supabase.auth.getUser();
+                const timestamp = Date.now();
+                const imageFilename = `image_scene${sceneIndex}_${timestamp}.png`;
+
+                try {
+                    const publicUrl = await uploadImageToStorage(base64Image, imageFilename, user?.id);
+                    console.log('Gemini Pro image uploaded to Supabase:', publicUrl);
+                    return publicUrl;
+                } catch (uploadError) {
+                    console.error('Failed to upload Gemini Pro image:', uploadError);
+                    return base64Image; // Fallback
+                }
+            }
         }
     } catch (e) { console.error("Gemini Image Gen failed", e); }
   }
   return undefined;
 };
 
-const generateGeminiTTS = async (text: string, signal?: AbortSignal) => {
+const generateGeminiTTS = async (text: string, sceneIndex: number, signal?: AbortSignal) => {
   const ai = getGeminiClient();
   try {
     const response = await withRetry(async () => {
@@ -160,7 +194,25 @@ const generateGeminiTTS = async (text: string, signal?: AbortSignal) => {
     if (base64Audio) {
       const sampleRate = 24000;
       const duration = atob(base64Audio).length / (sampleRate * 2);
-      return { url: pcmToWav(base64Audio, sampleRate), duration };
+      const wavBlob = pcmToWav(base64Audio, sampleRate);
+
+      // Upload to Supabase Storage
+      const { data: { user } } = await supabase.auth.getUser();
+      const timestamp = Date.now();
+      const audioFilename = `audio_scene${sceneIndex}_${timestamp}.wav`;
+
+      try {
+        // Convert blob URL to actual Blob
+        const response = await fetch(wavBlob);
+        const audioBlob = await response.blob();
+
+        const publicUrl = await uploadAudioToStorage(audioBlob, audioFilename, user?.id);
+        console.log('Gemini audio uploaded to Supabase:', publicUrl);
+        return { url: publicUrl, duration };
+      } catch (uploadError) {
+        console.error('Failed to upload Gemini audio:', uploadError);
+        return { url: wavBlob, duration }; // Fallback to blob URL
+      }
     }
   } catch (e) { console.error("Gemini TTS Failed", e); }
   return undefined;
@@ -257,16 +309,16 @@ export const generateScript = async (
     if (signal?.aborted) throw new Error("Cancelled");
     const scene = script.scenes[i];
     onProgress?.(10 + ((i / script.scenes.length) * 90), `Gemini Asset Gen ${i+1}/${script.scenes.length}...`);
-    
+
     // We send prompts in English usually (enforced by script prompt), but if they come in mixed, Gemini Vision handles it.
     const imageUrl = await generateGeminiImage(
-        `Vertical photo, 4k. Character: ${script.characterDescription}. Action: ${scene.imagePrompt}`, signal
+        `Vertical photo, 4k. Character: ${script.characterDescription}. Action: ${scene.imagePrompt}`, i, signal
     );
-    
+
     if (signal?.aborted) throw new Error("Cancelled");
-    
-    const audioRes = await generateGeminiTTS(scene.text, signal);
-    
+
+    const audioRes = await generateGeminiTTS(scene.text, i, signal);
+
     scenesWithAssets.push({
         ...scene,
         imageUrl,

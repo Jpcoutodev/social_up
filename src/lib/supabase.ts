@@ -124,10 +124,13 @@ export async function uploadAudioToStorage(
   // Organize audios by user ID if provided
   const filePath = userId ? `${userId}/${filename}` : filename;
 
+  // Detect content type from filename
+  const contentType = filename.endsWith('.wav') ? 'audio/wav' : 'audio/mpeg';
+
   const { data, error } = await supabase.storage
     .from('video-assets')
     .upload(filePath, file, {
-      contentType: 'audio/mpeg',
+      contentType,
       upsert: false,
       cacheControl: '3600',
     });
