@@ -159,6 +159,7 @@ echo "✅ Render Complete! Check the 'out' folder."
                     script: video.script,
                     title: video.title,
                     user_id: user.id,
+                    video_id: video.id,
                 }),
             });
 
