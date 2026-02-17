@@ -345,24 +345,6 @@ echo "✅ Render Complete! Check the 'out' folder."
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Export Options</h3>
 
               <button
-                onClick={handleRenderMP4}
-                disabled={rendering}
-                className="w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center space-x-2 transition-all bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-lg shadow-green-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {rendering ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                    <span>Rendering MP4...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download size={18} />
-                    <span>Download MP4</span>
-                  </>
-                )}
-              </button>
-
-              <button
                 onClick={handleSave}
                 disabled={saving}
                 className="w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center space-x-2 transition-all bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-900/20 disabled:opacity-50"
@@ -370,24 +352,6 @@ echo "✅ Render Complete! Check the 'out' folder."
                 {saving ? <Sparkles className="animate-spin" size={18} /> : <FileVideo size={18} />}
                 <span>{saving ? 'Saving...' : 'Save to Library'}</span>
               </button>
-
-              <div className="pt-2 border-t border-slate-700/50">
-                <button
-                  onClick={downloadRenderScript}
-                  className="w-full py-2 rounded-lg font-medium text-xs flex items-center justify-center space-x-2 transition-all bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600"
-                >
-                  <Terminal size={14} />
-                  <span>Download Shell Script</span>
-                </button>
-
-                <button
-                  onClick={copyRenderCommand}
-                  className="w-full py-2 mt-2 rounded-lg font-medium text-xs flex items-center justify-center space-x-2 transition-all bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600"
-                >
-                  {copied ? <Check size={14} className="text-green-400" /> : <Terminal size={14} />}
-                  <span>{copied ? "Copied" : "Copy CLI Command"}</span>
-                </button>
-              </div>
             </div>
           )}
 

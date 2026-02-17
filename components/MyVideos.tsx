@@ -235,14 +235,23 @@ echo "✅ Render Complete! Check the 'out' folder."
                                 onClick={() => setSelectedVideo(video)}
                                 className={`p-3 rounded-lg cursor-pointer transition-all border ${selectedVideo?.id === video.id
                                     ? 'bg-purple-900/20 border-purple-500/50'
-                                    : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'
+                                    : video.video_url
+                                        ? 'bg-green-900/10 border-green-700/40 hover:border-green-600/60'
+                                        : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'
                                     }`}
                             >
                                 <div className="flex justify-between items-start mb-1">
-                                    <h3 className="font-medium text-slate-200 line-clamp-1">{video.title}</h3>
+                                    <div className="flex items-center gap-1 flex-1 min-w-0">
+                                        {video.video_url && (
+                                            <span className="text-green-400 flex-shrink-0" title="MP4 ready">
+                                                <FileVideo size={12} />
+                                            </span>
+                                        )}
+                                        <h3 className="font-medium text-slate-200 line-clamp-1">{video.title}</h3>
+                                    </div>
                                     <button
                                         onClick={(e) => handleDelete(video.id, e)}
-                                        className="text-slate-600 hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        className="text-slate-600 hover:text-red-400 p-1 flex-shrink-0 transition-colors"
                                     >
                                         <Trash2 size={14} />
                                     </button>
@@ -266,39 +275,39 @@ echo "✅ Render Complete! Check the 'out' folder."
             <div className="flex-1 bg-slate-900 flex flex-col relative overflow-hidden">
                 {selectedVideo ? (
                     <div className="flex-1 flex flex-col items-center justify-center p-8">
-                        <div className="mb-6 flex items-center gap-4">
-                            <h2 className="text-2xl font-bold text-white">{selectedVideo.title}</h2>
-                            <button
-                                onClick={(e) => downloadRenderScript(selectedVideo, e as any)}
-                                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm font-medium transition-colors border border-slate-700"
-                            >
-                                <Download size={16} />
-                                Download MP4 Script
-                            </button>
-                            <button
-                                onClick={(e) => handleRenderMP4(selectedVideo, e)}
-                                disabled={rendering && renderingId === selectedVideo.id}
-                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-slate-600 disabled:to-slate-600 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-green-900/40"
-                            >
-                                {rendering && renderingId === selectedVideo.id ? (
-                                    <>
-                                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                                        <span>Rendering...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Download size={16} />
-                                        <span>Render MP4</span>
-                                    </>
-                                )}
-                            </button>
-                            <button
-                                onClick={(e) => handleAutoPost(selectedVideo, e)}
-                                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-purple-900/40"
-                            >
-                                <Send size={16} />
-                                Post via n8n
-                            </button>
+                        <div className="mb-6 flex items-center gap-4 flex-wrap justify-center">
+                            <h2 className="text-2xl font-bold text-white w-full text-center">{selectedVideo.title}</h2>
+
+                            {selectedVideo.video_url ? (
+                                <a
+                                    href={selectedVideo.video_url}
+                                    download={`${selectedVideo.title.replace(/\s+/g, '_').toLowerCase()}.mp4`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-green-900/40 animate-pulse"
+                                >
+                                    <Download size={18} />
+                                    <span>Download MP4</span>
+                                </a>
+                            ) : (
+                                <button
+                                    onClick={(e) => handleRenderMP4(selectedVideo, e)}
+                                    disabled={rendering && renderingId === selectedVideo.id}
+                                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-slate-600 disabled:to-slate-600 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-green-900/40"
+                                >
+                                    {rendering && renderingId === selectedVideo.id ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                                            <span>Rendering...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Download size={16} />
+                                            <span>Render MP4</span>
+                                        </>
+                                    )}
+                                </button>
+                            )}
                         </div>
 
                         {progressStatus && renderingId === selectedVideo.id && (
@@ -323,19 +332,6 @@ echo "✅ Render Complete! Check the 'out' folder."
                             />
                         </div>
 
-                        {selectedVideo.video_url && (
-                            <div className="mt-4 p-4 bg-green-900/20 border border-green-700 rounded-lg">
-                                <p className="text-sm text-green-300 mb-2 font-medium">✅ Video rendered and available:</p>
-                                <a
-                                    href={selectedVideo.video_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-sm text-green-400 hover:text-green-300 underline break-all"
-                                >
-                                    {selectedVideo.video_url}
-                                </a>
-                            </div>
-                        )}
                     </div>
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-600">
