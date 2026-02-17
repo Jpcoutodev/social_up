@@ -135,7 +135,7 @@ echo "✅ Render Complete! Check the 'out' folder."
     const handleRenderMP4 = async (video: SavedVideo, e: React.MouseEvent) => {
         e.stopPropagation();
 
-        if (!confirm(`🎬 Render "${video.title}" to MP4?\n\nThis may take 5-10 minutes.`)) return;
+        if (!confirm(`🎬 Render "${video.title}" to MP4?\n\nFFmpeg rendering will take ~30-60 seconds.`)) return;
 
         setRendering(true);
         setRenderingId(video.id);
@@ -145,8 +145,8 @@ echo "✅ Render Complete! Check the 'out' folder."
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('User not authenticated');
 
-            // Webhook n8n com HTTPS
-            const webhookUrl = 'https://n8n.dualis.love/webhook/render-video';
+            // Webhook n8n FFmpeg (Easypanel)
+            const webhookUrl = 'https://social-up-n8n.jx5kj7.easypanel.host/webhook/512c2ea0-6754-4b6b-973b-17b47dc02820';
 
             setProgressStatus('Rendering video... This may take several minutes.');
 

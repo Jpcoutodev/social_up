@@ -1,0 +1,285 @@
+{
+  "name": "Render Video FFmpeg Zoom",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "512c2ea0-6754-4b6b-973b-17b47dc02820",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "512c2ea0-6754-4b6b-973b-17b47dc02820"
+    },
+    {
+      "parameters": {
+        "jsCode": "const script = $input.item.json.body.script;\nconst title = $input.item.json.body.title;\nconst userId = $input.item.json.body.user_id;\n\nconst timestamp = Date.now();\nconst safeTitle = title.toLowerCase().replace(/[^a-z0-9]/g, '_');\nconst videoId = `${safeTitle}_${timestamp}`;\nconst workDir = `/tmp/render_${videoId}`;\n\nreturn {\n  json: {\n    script,\n    title,\n    userId,\n    videoId,\n    workDir,\n    scenes: script.scenes,\n    sceneCount: script.scenes.length\n  }\n};"
+      },
+      "id": "process-input",
+      "name": "Process Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "command": "=mkdir -p {{$json.workDir}}"
+      },
+      "id": "create-workdir",
+      "name": "Create Work Directory",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const scenes = $input.item.json.scenes;\nconst workDir = $input.item.json.workDir;\n\nconst commands = [];\n\n// Download all images and audios\nfor (let i = 0; i < scenes.length; i++) {\n  const scene = scenes[i];\n  commands.push({\n    imageUrl: scene.imageUrl,\n    audioUrl: scene.audioUrl,\n    imagePath: `${workDir}/image_${i}.png`,\n    audioPath: `${workDir}/audio_${i}.wav`,\n    sceneIndex: i,\n    duration: scene.durationInSeconds\n  });\n}\n\nreturn commands.map(cmd => ({ json: cmd }));"
+      },
+      "id": "prepare-downloads",
+      "name": "Prepare Downloads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "command": "=wget -q -O {{$json.imagePath}} \"{{$json.imageUrl}}\" && wget -q -O {{$json.audioPath}} \"{{$json.audioUrl}}\""
+      },
+      "id": "download-assets",
+      "name": "Download Assets",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst workDir = items[0].json.workDir;\nconst scenes = [];\n\nfor (const item of items) {\n  const i = item.json.sceneIndex;\n  const duration = item.json.duration;\n  const fps = 30;\n  const frames = Math.ceil(duration * fps);\n  \n  // Ken Burns effect: zoom from 1.0 to 1.2 over the duration\n  const zoomSpeed = 0.2 / duration; // zoom by 0.2 over the full duration\n  \n  scenes.push({\n    sceneIndex: i,\n    inputImage: `${workDir}/image_${i}.png`,\n    inputAudio: `${workDir}/audio_${i}.wav`,\n    outputVideo: `${workDir}/scene_${i}.mp4`,\n    duration,\n    frames,\n    zoomSpeed\n  });\n}\n\nreturn scenes.map(s => ({ json: { ...s, workDir } }));"
+      },
+      "id": "prepare-render",
+      "name": "Prepare Render",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -y -loop 1 -i {{$json.inputImage}} -i {{$json.inputAudio}} -vf \"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,zoompan=z='min(1+{{$json.zoomSpeed}}*on/{{$json.frames}},1.2)':d={{$json.frames}}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30\" -c:v libx264 -preset fast -c:a aac -shortest -pix_fmt yuv420p {{$json.outputVideo}} 2>&1"
+      },
+      "id": "render-scene",
+      "name": "Render Scene with Zoom",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst workDir = items[0].json.workDir;\nconst sceneCount = items.length;\n\n// Create concat file for ffmpeg\nlet concatContent = '';\nfor (let i = 0; i < sceneCount; i++) {\n  concatContent += `file 'scene_${i}.mp4'\\n`;\n}\n\nconst concatFile = `${workDir}/concat.txt`;\nconst outputVideo = `${workDir}/final_video.mp4`;\n\nreturn [{\n  json: {\n    workDir,\n    concatContent,\n    concatFile,\n    outputVideo,\n    sceneCount\n  }\n}];"
+      },
+      "id": "prepare-concat",
+      "name": "Prepare Concatenation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "command": "=echo '{{$json.concatContent}}' > {{$json.concatFile}} && cd {{$json.workDir}} && ffmpeg -y -f concat -safe 0 -i concat.txt -c copy {{$json.outputVideo}} 2>&1"
+      },
+      "id": "concatenate",
+      "name": "Concatenate Scenes",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "filePath": "={{$json.outputVideo}}",
+        "options": {}
+      },
+      "id": "read-video",
+      "name": "Read Video File",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://qgbxduvipeadycxremqa.supabase.co/storage/v1/object/rendered-videos/{{$('Process Input').item.json.userId}}/{{$('Process Input').item.json.videoId}}.mp4",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYnhkdXZpcGVhZHljeHJlbXFhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNzIxNDQ5MywiZXhwIjoyMDUyNzkwNDkzfQ.xfcAq7TbHH4pqeMQO7RlvxdVBr8r5uWvYYmqo-jRf_4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYnhkdXZpcGVhZHljeHJlbXFhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNzIxNDQ5MywiZXhwIjoyMDUyNzkwNDkzfQ.xfcAq7TbHH4pqeMQO7RlvxdVBr8r5uWvYYmqo-jRf_4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "video/mp4"
+            }
+          ]
+        },
+        "options": {
+          "bodyContentType": "raw"
+        }
+      },
+      "id": "upload-supabase",
+      "name": "Upload to Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const userId = $('Process Input').item.json.userId;\nconst videoId = $('Process Input').item.json.videoId;\nconst title = $('Process Input').item.json.title;\n\nconst publicUrl = `https://qgbxduvipeadycxremqa.supabase.co/storage/v1/object/public/rendered-videos/${userId}/${videoId}.mp4`;\n\nreturn [{\n  json: {\n    videoUrl: publicUrl,\n    userId,\n    title\n  }\n}];"
+      },
+      "id": "build-url",
+      "name": "Build Video URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://qgbxduvipeadycxremqa.supabase.co/rest/v1/social_videos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYnhkdXZpcGVhZHljeHJlbXFhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNzIxNDQ5MywiZXhwIjoyMDUyNzkwNDkzfQ.xfcAq7TbHH4pqeMQO7RlvxdVBr8r5uWvYYmqo-jRf_4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYnhkdXZpcGVhZHljeHJlbXFhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNzIxNDQ5MywiZXhwIjoyMDUyNzkwNDkzfQ.xfcAq7TbHH4pqeMQO7RlvxdVBr8r5uWvYYmqo-jRf_4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"user_id\": \"{{$json.userId}}\", \"video_url\": \"{{$json.videoUrl}}\", \"title\": \"{{$json.title}}\" }",
+        "options": {}
+      },
+      "id": "save-database",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"videoUrl\": \"{{$('Build Video URL').item.json.videoUrl}}\" }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://social-up.dualis.love"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2850, 300]
+    },
+    {
+      "parameters": {
+        "command": "=rm -rf {{$('Prepare Concatenation').item.json.workDir}}"
+      },
+      "id": "cleanup",
+      "name": "Cleanup",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [3050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Process Input", "type": "main", "index": 0 }]]
+    },
+    "Process Input": {
+      "main": [[{ "node": "Create Work Directory", "type": "main", "index": 0 }]]
+    },
+    "Create Work Directory": {
+      "main": [[{ "node": "Prepare Downloads", "type": "main", "index": 0 }]]
+    },
+    "Prepare Downloads": {
+      "main": [[{ "node": "Download Assets", "type": "main", "index": 0 }]]
+    },
+    "Download Assets": {
+      "main": [[{ "node": "Prepare Render", "type": "main", "index": 0 }]]
+    },
+    "Prepare Render": {
+      "main": [[{ "node": "Render Scene with Zoom", "type": "main", "index": 0 }]]
+    },
+    "Render Scene with Zoom": {
+      "main": [[{ "node": "Prepare Concatenation", "type": "main", "index": 0 }]]
+    },
+    "Prepare Concatenation": {
+      "main": [[{ "node": "Concatenate Scenes", "type": "main", "index": 0 }]]
+    },
+    "Concatenate Scenes": {
+      "main": [[{ "node": "Read Video File", "type": "main", "index": 0 }]]
+    },
+    "Read Video File": {
+      "main": [[{ "node": "Upload to Supabase", "type": "main", "index": 0 }]]
+    },
+    "Upload to Supabase": {
+      "main": [[{ "node": "Build Video URL", "type": "main", "index": 0 }]]
+    },
+    "Build Video URL": {
+      "main": [[{ "node": "Save to Database", "type": "main", "index": 0 }]]
+    },
+    "Save to Database": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    },
+    "Respond to Webhook": {
+      "main": [[{ "node": "Cleanup", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-02-16T00:00:00.000Z",
+  "versionId": "1"
+}
