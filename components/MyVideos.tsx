@@ -146,7 +146,7 @@ echo "✅ Render Complete! Check the 'out' folder."
             if (!user) throw new Error('User not authenticated');
 
             // Webhook n8n FFmpeg (Easypanel)
-            const webhookUrl = 'https://social-up-n8n.jx5kj7.easypanel.host/webhook/512c2ea0-6754-4b6b-973b-17b47dc02820';
+            const webhookUrl = 'https://n8n-n8n.jx5kj7.easypanel.host/webhook/512c2ea0-6754-4b6b-973b-17b47dc02820';
 
             setProgressStatus('Rendering video... This may take several minutes.');
 
