@@ -69,26 +69,24 @@ export const generateMinimaxScript = async (
   // 1. Script (MiniMax-Text-01)
   onProgress?.(10, `Writing script in ${langName} with MiniMax-Text-01...`);
 
-  const systemPrompt = `You are an expert viral video scripter for TikTok/Reels.
-Output strictly valid JSON with no markdown fences.
+  const systemPrompt = `You are a JSON-only API. You MUST respond with a single valid JSON object and NOTHING else. No markdown, no code fences, no prose, no explanations. Your entire response must be parseable by JSON.parse().`;
 
-CRITICAL LANGUAGE REQUIREMENT:
-The "text" field for narration MUST be written in **${langName}**.
+  const userPrompt = `Create a viral short video script (TikTok/Reels) about: "${topic}". 15-30 seconds total. Keep the main character generic.
 
-Structure:
+The "text" field for narration MUST be written in ${langName}. The "imagePrompt" and "characterDescription" fields MUST be in English.
+
+Respond with ONLY this JSON structure (no markdown, no fences, no extra text):
 {
-  "characterDescription": "string (in English for image gen compatibility)",
+  "characterDescription": "string in English",
   "backgroundMusicMood": "string",
   "scenes": [
     {
-      "text": "string (First person narration in ${langName}, max 15 words)",
-      "durationInSeconds": number (min 2),
-      "imagePrompt": "string (Visual description in English)"
+      "text": "narration in ${langName}, max 15 words",
+      "durationInSeconds": 3,
+      "imagePrompt": "visual description in English"
     }
   ]
 }`;
-
-  const userPrompt = `Create a viral short video script about: "${topic}". 15-30 seconds total. Keep character generic. Return ONLY the JSON object.`;
 
   const scriptResponse = await fetchMinimax('/text/chatcompletion_v2', {
     model: "MiniMax-Text-01",
@@ -96,19 +94,36 @@ Structure:
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt }
     ],
-    response_format: { type: "json_object" },
-    temperature: 0.8,
+    temperature: 0.6,
     max_tokens: 2048
   }, apiKey, signal);
 
   const rawContent: string = scriptResponse.choices?.[0]?.message?.content || '';
-  const cleaned = rawContent.replace(/^```json\s*|\s*```$/g, '').trim();
+  console.log('[MiniMax] Raw script response:', rawContent);
+
+  const extractJson = (text: string): string => {
+    let s = text.trim();
+    // strip markdown fences anywhere
+    s = s.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
+    // grab the substring from the first { to the last }
+    const first = s.indexOf('{');
+    const last = s.lastIndexOf('}');
+    if (first !== -1 && last !== -1 && last > first) {
+      s = s.slice(first, last + 1);
+    }
+    return s;
+  };
 
   let script: VideoScript;
   try {
-    script = JSON.parse(cleaned);
-  } catch {
-    throw new Error('MiniMax returned malformed JSON for the script.');
+    script = JSON.parse(extractJson(rawContent));
+  } catch (e) {
+    console.error('[MiniMax] JSON parse failed. Raw content:', rawContent);
+    throw new Error(`MiniMax returned malformed JSON for the script. First 200 chars: ${rawContent.slice(0, 200)}`);
+  }
+
+  if (!script?.scenes || !Array.isArray(script.scenes) || script.scenes.length === 0) {
+    throw new Error('MiniMax returned a script without scenes.');
   }
 
   // 2. Asset generation per scene
