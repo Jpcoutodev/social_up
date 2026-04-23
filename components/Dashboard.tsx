@@ -5,7 +5,7 @@ import { VideoScript, AIProvider, VideoLanguage } from '../types';
 import { generateScript, getProvider } from '../services/geminiService';
 import { VideoComposition } from './VideoComposition';
 import { VIDEO_WIDTH, VIDEO_HEIGHT, VIDEO_FPS } from '../constants';
-import { Wand2, Terminal, Check, Download, FileVideo, Video, XCircle, Bot, Sparkles, Globe } from 'lucide-react';
+import { Wand2, Terminal, Check, Download, FileVideo, Video, XCircle, Bot, Sparkles, Globe, Zap } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const [topic, setTopic] = useState('');
@@ -52,7 +52,7 @@ export const Dashboard: React.FC = () => {
 
     setLoading(true);
     setProgress(0);
-    setProgressStatus(`Initializing ${currentProvider === 'openai' ? 'OpenAI' : 'Gemini'}...`);
+    setProgressStatus(`Initializing ${currentProvider === 'openai' ? 'OpenAI' : currentProvider === 'minimax' ? 'MiniMax' : 'Gemini'}...`);
     setError(null);
     setScript(null);
     setCopied(false);
@@ -257,9 +257,13 @@ echo "✅ Render Complete! Check the 'out' folder."
                 Content Gen
               </h2>
               {/* Active Provider Badge */}
-              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold border ${activeProvider === 'openai' ? 'bg-green-900/30 border-green-700 text-green-400' : 'bg-purple-900/30 border-purple-700 text-purple-400'}`}>
-                {activeProvider === 'openai' ? <Bot size={12} /> : <Sparkles size={12} />}
-                {activeProvider === 'openai' ? 'GPT-4o + DALL-E 3' : 'GEMINI 2.5'}
+              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold border ${
+                activeProvider === 'openai' ? 'bg-green-900/30 border-green-700 text-green-400' :
+                activeProvider === 'minimax' ? 'bg-orange-900/30 border-orange-700 text-orange-400' :
+                'bg-purple-900/30 border-purple-700 text-purple-400'
+              }`}>
+                {activeProvider === 'openai' ? <Bot size={12} /> : activeProvider === 'minimax' ? <Zap size={12} /> : <Sparkles size={12} />}
+                {activeProvider === 'openai' ? 'GPT-4o + DALL-E 3' : activeProvider === 'minimax' ? 'MiniMax T01 + image-01' : 'GEMINI 2.5'}
               </div>
             </div>
 
@@ -321,7 +325,11 @@ echo "✅ Render Complete! Check the 'out' folder."
                 {/* Progress Bar */}
                 <div className="w-full h-2 bg-black rounded-full overflow-hidden border border-slate-700">
                   <div
-                    className={`h-full transition-all duration-300 ease-out ${activeProvider === 'openai' ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-purple-500 to-pink-500'}`}
+                    className={`h-full transition-all duration-300 ease-out ${
+                      activeProvider === 'openai' ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
+                      activeProvider === 'minimax' ? 'bg-gradient-to-r from-orange-500 to-red-500' :
+                      'bg-gradient-to-r from-purple-500 to-pink-500'
+                    }`}
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -427,7 +435,7 @@ echo "✅ Render Complete! Check the 'out' folder."
             <div>
               <h2 className="text-3xl font-bold text-slate-400 mb-2">Ready to Create</h2>
               <p className="max-w-md mx-auto text-slate-500">
-                Enter a topic on the left to generate a viral vertical video powered by <strong className="text-slate-300">{activeProvider === 'openai' ? 'OpenAI DALL-E 3' : 'Gemini AI'}</strong>.
+                Enter a topic on the left to generate a viral vertical video powered by <strong className="text-slate-300">{activeProvider === 'openai' ? 'OpenAI DALL-E 3' : activeProvider === 'minimax' ? 'MiniMax (Text-01 + image-01)' : 'Gemini AI'}</strong>.
               </p>
             </div>
           </div>

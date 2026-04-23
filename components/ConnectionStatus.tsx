@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { checkConnection, getApiKey, setApiKey, removeApiKey, getProvider, setProvider } from '../services/geminiService';
+import { checkConnection, getApiKey, setApiKey, removeApiKey, getProvider, setProvider, getMinimaxGroupId, setMinimaxGroupId } from '../services/geminiService';
 import { AIProvider } from '../types';
-import { CheckCircle2, XCircle, Loader2, Server, Key, ShieldCheck, Eye, EyeOff, Save, Trash2, Bot, Sparkles, Cpu } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Server, Key, ShieldCheck, Eye, EyeOff, Save, Trash2, Bot, Sparkles, Cpu, Zap } from 'lucide-react';
 
 export const ConnectionStatus: React.FC = () => {
     const [status, setStatus] = useState<'idle' | 'checking' | 'connected' | 'error'>('idle');
@@ -14,11 +14,14 @@ export const ConnectionStatus: React.FC = () => {
     // Key Inputs
     const [geminiKey, setGeminiKey] = useState('');
     const [openaiKey, setOpenaiKey] = useState('');
+    const [minimaxKey, setMinimaxKey] = useState('');
+    const [minimaxGroup, setMinimaxGroup] = useState('');
     const [showKey, setShowKey] = useState(false);
 
     // States to track if keys are saved
     const [savedGemini, setSavedGemini] = useState(false);
     const [savedOpenai, setSavedOpenai] = useState(false);
+    const [savedMinimax, setSavedMinimax] = useState(false);
 
     const loadSettings = () => {
         const provider = getProvider();
@@ -35,6 +38,14 @@ export const ConnectionStatus: React.FC = () => {
             setOpenaiKey(lsOpenAI);
             setSavedOpenai(true);
         }
+
+        const lsMinimax = localStorage.getItem('minimax_custom_api_key');
+        if (lsMinimax) {
+            setMinimaxKey(lsMinimax);
+            setSavedMinimax(true);
+        }
+
+        setMinimaxGroup(getMinimaxGroupId());
     };
 
     const runCheck = async () => {
@@ -62,9 +73,13 @@ export const ConnectionStatus: React.FC = () => {
         if (provider === 'gemini') {
             setApiKey('gemini', geminiKey);
             setSavedGemini(true);
-        } else {
+        } else if (provider === 'openai') {
             setApiKey('openai', openaiKey);
             setSavedOpenai(true);
+        } else {
+            setApiKey('minimax', minimaxKey);
+            setMinimaxGroupId(minimaxGroup);
+            setSavedMinimax(true);
         }
         // If we saved the key for the active provider, re-check
         if (provider === selectedProvider) runCheck();
@@ -75,9 +90,14 @@ export const ConnectionStatus: React.FC = () => {
         if (provider === 'gemini') {
             setGeminiKey('');
             setSavedGemini(false);
-        } else {
+        } else if (provider === 'openai') {
             setOpenaiKey('');
             setSavedOpenai(false);
+        } else {
+            setMinimaxKey('');
+            setMinimaxGroup('');
+            setMinimaxGroupId('');
+            setSavedMinimax(false);
         }
         if (provider === selectedProvider) runCheck();
     };
@@ -97,7 +117,7 @@ export const ConnectionStatus: React.FC = () => {
             <div className="grid grid-cols-1 gap-8">
 
                 {/* PROVIDER SELECTION */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <button
                         onClick={() => handleProviderChange('gemini')}
                         className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center gap-3 relative overflow-hidden ${selectedProvider === 'gemini'
@@ -135,17 +155,46 @@ export const ConnectionStatus: React.FC = () => {
                             <div className="text-xs text-slate-500 mt-1">Paid API Only</div>
                         </div>
                     </button>
+
+                    <button
+                        onClick={() => handleProviderChange('minimax')}
+                        className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center gap-3 relative overflow-hidden ${selectedProvider === 'minimax'
+                                ? 'border-orange-500 bg-orange-900/20 shadow-lg shadow-orange-900/20'
+                                : 'border-slate-700 bg-slate-800 hover:bg-slate-750 hover:border-slate-600'
+                            }`}
+                    >
+                        {selectedProvider === 'minimax' && (
+                            <div className="absolute top-2 right-2 flex items-center gap-1 bg-orange-600/30 border border-orange-500/50 px-2 py-0.5 rounded-full text-[10px] text-orange-200 font-bold uppercase">
+                                <CheckCircle2 size={10} /> Active
+                            </div>
+                        )}
+                        <Zap size={32} className={selectedProvider === 'minimax' ? 'text-orange-400' : 'text-slate-500'} />
+                        <div className="text-center">
+                            <div className={`font-bold ${selectedProvider === 'minimax' ? 'text-white' : 'text-slate-400'}`}>MiniMax</div>
+                            <div className="text-xs text-slate-500 mt-1">Text-01 + image-01 + speech-02</div>
+                        </div>
+                    </button>
                 </div>
 
                 {/* API CONFIGURATION CARD */}
                 <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl relative overflow-hidden">
                     {/* Dynamic Background Glow based on provider */}
-                    <div className={`absolute top-0 left-0 w-full h-1 ${selectedProvider === 'gemini' ? 'bg-gradient-to-r from-purple-500 to-pink-500' : 'bg-gradient-to-r from-green-500 to-emerald-500'}`} />
+                    <div className={`absolute top-0 left-0 w-full h-1 ${
+                        selectedProvider === 'gemini' ? 'bg-gradient-to-r from-purple-500 to-pink-500' :
+                        selectedProvider === 'openai' ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
+                        'bg-gradient-to-r from-orange-500 to-red-500'
+                    }`} />
 
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                            <Key className={selectedProvider === 'gemini' ? 'text-purple-400' : 'text-green-400'} size={20} />
-                            {selectedProvider === 'gemini' ? 'Gemini API Configuration' : 'OpenAI API Configuration'}
+                            <Key className={
+                                selectedProvider === 'gemini' ? 'text-purple-400' :
+                                selectedProvider === 'openai' ? 'text-green-400' :
+                                'text-orange-400'
+                            } size={20} />
+                            {selectedProvider === 'gemini' ? 'Gemini API Configuration' :
+                             selectedProvider === 'openai' ? 'OpenAI API Configuration' :
+                             'MiniMax API Configuration'}
                         </h3>
                     </div>
 
@@ -207,6 +256,46 @@ export const ConnectionStatus: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* MINIMAX INPUT */}
+                    <div className={selectedProvider === 'minimax' ? 'block space-y-4' : 'hidden'}>
+                        <p className="text-sm text-slate-400">
+                            Enter your MiniMax API Key (from <span className="text-orange-400">platform.minimaxi.com</span>). The Group ID is required for narration (TTS).
+                        </p>
+
+                        <div className="flex flex-col md:flex-row gap-3">
+                            <div className="relative flex-1">
+                                <input
+                                    type={showKey ? "text" : "password"}
+                                    value={minimaxKey}
+                                    onChange={(e) => setMinimaxKey(e.target.value)}
+                                    placeholder="Paste MiniMax API Key"
+                                    className="w-full bg-slate-900 border border-slate-600 rounded-lg py-3 pl-4 pr-12 text-sm text-white focus:ring-2 focus:ring-orange-500 outline-none"
+                                />
+                                <button onClick={() => setShowKey(!showKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+                                    {showKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col md:flex-row gap-3">
+                            <input
+                                type="text"
+                                value={minimaxGroup}
+                                onChange={(e) => setMinimaxGroup(e.target.value)}
+                                placeholder="Group ID (required for TTS)"
+                                className="flex-1 bg-slate-900 border border-slate-600 rounded-lg py-3 pl-4 pr-4 text-sm text-white focus:ring-2 focus:ring-orange-500 outline-none"
+                            />
+                            <button onClick={() => handleSaveKey('minimax')} className="flex items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-medium rounded-lg transition-colors">
+                                <Save size={18} /> Save
+                            </button>
+                            {savedMinimax && (
+                                <button onClick={() => handleRemoveKey('minimax')} className="px-4 py-3 bg-red-900/20 hover:bg-red-900/40 border border-red-800 text-red-400 rounded-lg">
+                                    <Trash2 size={18} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center gap-2 text-[10px] text-slate-500">
                         <ShieldCheck size={12} />
                         <span>Keys are stored locally in your browser.</span>
@@ -219,7 +308,11 @@ export const ConnectionStatus: React.FC = () => {
                     <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl flex flex-col">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                <Server className={selectedProvider === 'gemini' ? 'text-purple-400' : 'text-green-400'} size={20} />
+                                <Server className={
+                                    selectedProvider === 'gemini' ? 'text-purple-400' :
+                                    selectedProvider === 'openai' ? 'text-green-400' :
+                                    'text-orange-400'
+                                } size={20} />
                                 Active Connection
                             </h3>
                             {status === 'checking' && <Loader2 className="animate-spin text-slate-400" />}
@@ -261,17 +354,25 @@ export const ConnectionStatus: React.FC = () => {
                         </h3>
 
                         <div className="space-y-4">
-                            {selectedProvider === 'gemini' ? (
+                            {selectedProvider === 'gemini' && (
                                 <>
                                     <ServiceItem name="Script Gen" model="Gemini 1.5 Flash" type="LLM" active={true} color="purple" />
                                     <ServiceItem name="Image Gen" model="Gemini 2.5 Flash / Pro" type="Vision" active={true} color="purple" />
                                     <ServiceItem name="Narration" model="Gemini TTS" type="Audio" active={true} color="purple" />
                                 </>
-                            ) : (
+                            )}
+                            {selectedProvider === 'openai' && (
                                 <>
                                     <ServiceItem name="Script Gen" model="GPT-4o" type="LLM" active={true} color="green" />
                                     <ServiceItem name="Image Gen" model="DALL-E 3 (Vertical)" type="Vision" active={true} color="green" />
                                     <ServiceItem name="Narration" model="TTS-1 (Onyx)" type="Audio" active={true} color="green" />
+                                </>
+                            )}
+                            {selectedProvider === 'minimax' && (
+                                <>
+                                    <ServiceItem name="Script Gen" model="MiniMax-Text-01" type="LLM" active={true} color="orange" />
+                                    <ServiceItem name="Image Gen" model="image-01 (Vertical)" type="Vision" active={true} color="orange" />
+                                    <ServiceItem name="Narration" model="speech-02-hd" type="Audio" active={!!minimaxGroup} color="orange" />
                                 </>
                             )}
                         </div>
@@ -283,10 +384,15 @@ export const ConnectionStatus: React.FC = () => {
     );
 };
 
-const ServiceItem = ({ name, model, type, active, color }: { name: string, model: string, type: string, active: boolean, color: string }) => (
+const ServiceItem = ({ name, model, type, active, color }: { name: string, model: string, type: string, active: boolean, color: string }) => {
+    const dotColor = !active ? 'bg-slate-600' :
+        color === 'purple' ? 'bg-purple-500 shadow-purple-500/50' :
+        color === 'orange' ? 'bg-orange-500 shadow-orange-500/50' :
+        'bg-green-500 shadow-green-500/50';
+    return (
     <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-            <div className={`w-2 h-2 rounded-full ${active ? (color === 'purple' ? 'bg-purple-500 shadow-purple-500/50' : 'bg-green-500 shadow-green-500/50') : 'bg-slate-600'} shadow-[0_0_8px_rgba(0,0,0,0.3)]`} />
+            <div className={`w-2 h-2 rounded-full ${dotColor} shadow-[0_0_8px_rgba(0,0,0,0.3)]`} />
             <div>
                 <div className="text-slate-200 text-sm font-medium">{name}</div>
                 <div className="text-slate-500 text-[10px] font-mono">{model}</div>
@@ -296,4 +402,5 @@ const ServiceItem = ({ name, model, type, active, color }: { name: string, model
             {type}
         </div>
     </div>
-);
+    );
+};

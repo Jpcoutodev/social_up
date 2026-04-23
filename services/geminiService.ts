@@ -2,11 +2,14 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { VideoScript, Scene, AIProvider, VideoLanguage } from "../types";
 import { pcmToWav } from "../utils/audioHelper";
 import { generateOpenAIScript } from "./openaiService";
+import { generateMinimaxScript, checkMinimaxConnection } from "./minimaxService";
 import { uploadAudioToStorage, uploadImageToStorage } from "../src/lib/supabase";
 import { supabase } from "../src/lib/supabase";
 
 const LOCAL_STORAGE_KEY_GEMINI = 'gemini_custom_api_key';
 const LOCAL_STORAGE_KEY_OPENAI = 'openai_custom_api_key';
+const LOCAL_STORAGE_KEY_MINIMAX = 'minimax_custom_api_key';
+const LOCAL_STORAGE_KEY_MINIMAX_GROUP = 'minimax_group_id';
 const LOCAL_STORAGE_KEY_PROVIDER = 'ai_provider_selection';
 
 // --- KEY & PROVIDER MANAGEMENT ---
@@ -21,11 +24,15 @@ export const setProvider = (provider: AIProvider) => {
 
 export const getApiKey = (provider?: AIProvider): string => {
   const currentProvider = provider || getProvider();
-  
+
   if (currentProvider === 'openai') {
     return (localStorage.getItem(LOCAL_STORAGE_KEY_OPENAI) || '').trim();
   }
-  
+
+  if (currentProvider === 'minimax') {
+    return (localStorage.getItem(LOCAL_STORAGE_KEY_MINIMAX) || '').trim();
+  }
+
   // Gemini Priority: 1. LocalStorage, 2. Env
   let key = localStorage.getItem(LOCAL_STORAGE_KEY_GEMINI) || process.env.API_KEY || '';
   return key.trim().replace(/^["']|["']$/g, '');
@@ -33,18 +40,29 @@ export const getApiKey = (provider?: AIProvider): string => {
 
 export const setApiKey = (provider: AIProvider, key: string) => {
   const cleanKey = key.trim().replace(/^["']|["']$/g, '');
-  if (provider === 'openai') {
-    if (cleanKey) localStorage.setItem(LOCAL_STORAGE_KEY_OPENAI, cleanKey);
-    else localStorage.removeItem(LOCAL_STORAGE_KEY_OPENAI);
-  } else {
-    if (cleanKey) localStorage.setItem(LOCAL_STORAGE_KEY_GEMINI, cleanKey);
-    else localStorage.removeItem(LOCAL_STORAGE_KEY_GEMINI);
-  }
+  const storageKey =
+    provider === 'openai' ? LOCAL_STORAGE_KEY_OPENAI :
+    provider === 'minimax' ? LOCAL_STORAGE_KEY_MINIMAX :
+    LOCAL_STORAGE_KEY_GEMINI;
+
+  if (cleanKey) localStorage.setItem(storageKey, cleanKey);
+  else localStorage.removeItem(storageKey);
 };
 
 export const removeApiKey = (provider: AIProvider) => {
   if (provider === 'openai') localStorage.removeItem(LOCAL_STORAGE_KEY_OPENAI);
+  else if (provider === 'minimax') localStorage.removeItem(LOCAL_STORAGE_KEY_MINIMAX);
   else localStorage.removeItem(LOCAL_STORAGE_KEY_GEMINI);
+};
+
+export const getMinimaxGroupId = (): string => {
+  return (localStorage.getItem(LOCAL_STORAGE_KEY_MINIMAX_GROUP) || '').trim();
+};
+
+export const setMinimaxGroupId = (groupId: string) => {
+  const clean = groupId.trim();
+  if (clean) localStorage.setItem(LOCAL_STORAGE_KEY_MINIMAX_GROUP, clean);
+  else localStorage.removeItem(LOCAL_STORAGE_KEY_MINIMAX_GROUP);
 };
 
 // --- GEMINI SPECIFIC HELPERS ---
@@ -97,6 +115,10 @@ export const checkConnection = async (): Promise<{ success: boolean; latency: nu
        });
        if (!res.ok) throw new Error("Invalid OpenAI Key or Service Down");
        return { success: true, latency: Date.now() - start, message: "Connected to OpenAI (GPT-4o)" };
+    } else if (provider === 'minimax') {
+       const result = await checkMinimaxConnection(key);
+       if (!result.success) throw new Error(result.message);
+       return { success: true, latency: Date.now() - start, message: result.message };
     } else {
        // Gemini Check
        const ai = new GoogleGenAI({ apiKey: key });
@@ -243,6 +265,15 @@ export const generateScript = async (
     if (!key) throw new Error("OpenAI API Key missing. Please set it in Settings.");
     onProgress?.(5, "Initializing OpenAI (GPT-4o + DALL-E 3)...");
     return generateOpenAIScript(topic, language, key, onProgress, signal);
+  }
+
+  // --- ROUTE TO MINIMAX ---
+  if (provider === 'minimax') {
+    const key = getApiKey('minimax');
+    if (!key) throw new Error("MiniMax API Key missing. Please set it in Settings.");
+    const groupId = getMinimaxGroupId();
+    onProgress?.(5, "Initializing MiniMax (Text-01 + image-01 + speech-02)...");
+    return generateMinimaxScript(topic, language, key, groupId, onProgress, signal);
   }
 
   // --- ROUTE TO GEMINI (Legacy Logic) ---
