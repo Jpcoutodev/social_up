@@ -165,8 +165,13 @@ Respond with ONLY this JSON structure (no markdown, no fences, no extra text):
         response_format: "url"
       }, apiKey, signal);
 
-      const imgItem = imageResponse.data?.image_urls?.[0] || imageResponse.data?.[0]?.url;
+      let imgItem = imageResponse.data?.image_urls?.[0] || imageResponse.data?.[0]?.url;
       if (imgItem) {
+        // Fix Mixed Content: MiniMax returns http:// URLs which are blocked on HTTPS sites
+        if (imgItem.startsWith('http://')) {
+          imgItem = imgItem.replace('http://', 'https://');
+          console.log('[MiniMax] Converted image URL to HTTPS:', imgItem.slice(0, 80) + '...');
+        }
         try {
           const imgRes = await fetch(imgItem);
           const imgBlob = await imgRes.blob();
@@ -273,7 +278,8 @@ Respond with ONLY this JSON structure (no markdown, no fences, no extra text):
         console.error("MiniMax TTS failed:", err);
       }
     } else {
-      console.warn('MiniMax: GroupId is missing — skipping TTS for this scene.');
+      console.error('[MiniMax TTS] ❌ GroupId is MISSING — TTS narration will NOT be generated! Configure Group ID in Settings.');
+      onProgress?.(Math.round(currentProgress), `⚠️ Scene ${i + 1}: GroupId missing — no narration!`);
     }
 
     scenesWithAssets.push({
