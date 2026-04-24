@@ -74,11 +74,18 @@ export const generateMinimaxScript = async (
   apiKey: string,
   groupId: string,
   onProgress?: (progress: number, status: string) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  customVoiceId?: string
 ): Promise<VideoScript> => {
 
   const langName = getLanguageInstruction(language);
   const voiceConfig = getMinimaxVoiceConfig(language);
+
+  // Override voice_id if user set a custom one
+  if (customVoiceId) {
+    voiceConfig.voice_id = customVoiceId;
+    console.log(`[MiniMax] Using custom voice_id: "${customVoiceId}"`);
+  }
 
   // 1. Script (MiniMax-Text-01)
   onProgress?.(10, `Writing script in ${langName} with MiniMax-Text-01...`);

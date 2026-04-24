@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { checkConnection, getApiKey, setApiKey, removeApiKey, getProvider, setProvider, getMinimaxGroupId, setMinimaxGroupId } from '../services/geminiService';
+import { checkConnection, getApiKey, setApiKey, removeApiKey, getProvider, setProvider, getMinimaxGroupId, setMinimaxGroupId, getMinimaxVoiceId, setMinimaxVoiceId } from '../services/geminiService';
 import { AIProvider } from '../types';
 import { CheckCircle2, XCircle, Loader2, Server, Key, ShieldCheck, Eye, EyeOff, Save, Trash2, Bot, Sparkles, Cpu, Zap } from 'lucide-react';
 
@@ -16,6 +16,7 @@ export const ConnectionStatus: React.FC = () => {
     const [openaiKey, setOpenaiKey] = useState('');
     const [minimaxKey, setMinimaxKey] = useState('');
     const [minimaxGroup, setMinimaxGroup] = useState('');
+    const [minimaxVoice, setMinimaxVoice] = useState('');
     const [showKey, setShowKey] = useState(false);
 
     // States to track if keys are saved
@@ -46,6 +47,7 @@ export const ConnectionStatus: React.FC = () => {
         }
 
         setMinimaxGroup(getMinimaxGroupId());
+        setMinimaxVoice(getMinimaxVoiceId());
     };
 
     const runCheck = async () => {
@@ -79,6 +81,7 @@ export const ConnectionStatus: React.FC = () => {
         } else {
             setApiKey('minimax', minimaxKey);
             setMinimaxGroupId(minimaxGroup);
+            setMinimaxVoiceId(minimaxVoice);
             setSavedMinimax(true);
         }
         // If we saved the key for the active provider, re-check
@@ -96,7 +99,9 @@ export const ConnectionStatus: React.FC = () => {
         } else {
             setMinimaxKey('');
             setMinimaxGroup('');
+            setMinimaxVoice('');
             setMinimaxGroupId('');
+            setMinimaxVoiceId('');
             setSavedMinimax(false);
         }
         if (provider === selectedProvider) runCheck();
@@ -285,6 +290,19 @@ export const ConnectionStatus: React.FC = () => {
                                 placeholder="Group ID (required for TTS)"
                                 className="flex-1 bg-slate-900 border border-slate-600 rounded-lg py-3 pl-4 pr-4 text-sm text-white focus:ring-2 focus:ring-orange-500 outline-none"
                             />
+                        </div>
+
+                        <div className="flex flex-col md:flex-row gap-3">
+                            <input
+                                type="text"
+                                value={minimaxVoice}
+                                onChange={(e) => setMinimaxVoice(e.target.value)}
+                                placeholder="Voice ID (optional, e.g. Portuguese_ConfidentWoman)"
+                                className="flex-1 bg-slate-900 border border-slate-600 rounded-lg py-3 pl-4 pr-4 text-sm text-white focus:ring-2 focus:ring-orange-500 outline-none"
+                            />
+                        </div>
+
+                        <div className="flex flex-col md:flex-row gap-3">
                             <button onClick={() => handleSaveKey('minimax')} className="flex items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-medium rounded-lg transition-colors">
                                 <Save size={18} /> Save
                             </button>
@@ -372,7 +390,7 @@ export const ConnectionStatus: React.FC = () => {
                                 <>
                                     <ServiceItem name="Script Gen" model="MiniMax-Text-01" type="LLM" active={true} color="orange" />
                                     <ServiceItem name="Image Gen" model="image-01 (Vertical)" type="Vision" active={true} color="orange" />
-                                    <ServiceItem name="Narration" model="speech-02-hd" type="Audio" active={!!minimaxGroup} color="orange" />
+                                    <ServiceItem name="Narration" model={`speech-02-hd (${minimaxVoice || 'auto'})`} type="Audio" active={!!minimaxGroup} color="orange" />
                                 </>
                             )}
                         </div>

@@ -10,6 +10,7 @@ const LOCAL_STORAGE_KEY_GEMINI = 'gemini_custom_api_key';
 const LOCAL_STORAGE_KEY_OPENAI = 'openai_custom_api_key';
 const LOCAL_STORAGE_KEY_MINIMAX = 'minimax_custom_api_key';
 const LOCAL_STORAGE_KEY_MINIMAX_GROUP = 'minimax_group_id';
+const LOCAL_STORAGE_KEY_MINIMAX_VOICE = 'minimax_voice_id';
 const LOCAL_STORAGE_KEY_PROVIDER = 'ai_provider_selection';
 
 // --- KEY & PROVIDER MANAGEMENT ---
@@ -63,6 +64,16 @@ export const setMinimaxGroupId = (groupId: string) => {
   const clean = groupId.trim();
   if (clean) localStorage.setItem(LOCAL_STORAGE_KEY_MINIMAX_GROUP, clean);
   else localStorage.removeItem(LOCAL_STORAGE_KEY_MINIMAX_GROUP);
+};
+
+export const getMinimaxVoiceId = (): string => {
+  return (localStorage.getItem(LOCAL_STORAGE_KEY_MINIMAX_VOICE) || '').trim();
+};
+
+export const setMinimaxVoiceId = (voiceId: string) => {
+  const clean = voiceId.trim();
+  if (clean) localStorage.setItem(LOCAL_STORAGE_KEY_MINIMAX_VOICE, clean);
+  else localStorage.removeItem(LOCAL_STORAGE_KEY_MINIMAX_VOICE);
 };
 
 // --- GEMINI SPECIFIC HELPERS ---
@@ -272,8 +283,9 @@ export const generateScript = async (
     const key = getApiKey('minimax');
     if (!key) throw new Error("MiniMax API Key missing. Please set it in Settings.");
     const groupId = getMinimaxGroupId();
+    const customVoiceId = getMinimaxVoiceId();
     onProgress?.(5, "Initializing MiniMax (Text-01 + image-01 + speech-02)...");
-    return generateMinimaxScript(topic, language, key, groupId, onProgress, signal);
+    return generateMinimaxScript(topic, language, key, groupId, onProgress, signal, customVoiceId);
   }
 
   // --- ROUTE TO GEMINI (Legacy Logic) ---
