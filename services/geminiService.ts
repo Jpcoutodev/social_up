@@ -286,7 +286,10 @@ export const generateScript = async (
   const langName = getLanguageInstruction(language);
   onProgress?.(10, `Writing script in ${langName} with Gemini AI...`);
 
-  const scriptPrompt = `Create a viral short-form video script (TikTok/Reels) about: "${topic}". 15-30s.
+  const scriptPrompt = `Topic: "${topic}"
+
+Create a highly engaging, viral short-form video script (TikTok/Reels) based on the topic above. 15-30 seconds total.
+CRITICAL: Do NOT just literally repeat or narrate the topic as a factual statement. Instead, craft a creative story, an engaging hook, or a natural narrative around the topic. Make it sound like a real person talking naturally (e.g., a vlog, a storytime, or a fun observation).
   
   CRITICAL: 
   1. Define a generic main character.

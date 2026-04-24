@@ -85,8 +85,12 @@ export const generateMinimaxScript = async (
 
   const systemPrompt = `You are a JSON-only API. You MUST respond with a single valid JSON object and NOTHING else. No markdown, no code fences, no prose, no explanations. Your entire response must be parseable by JSON.parse().`;
 
-  const userPrompt = `Create a viral short video script (TikTok/Reels) about: "${topic}". 15-30 seconds total. Keep the main character generic.
+  const userPrompt = `Topic: "${topic}"
 
+Create a highly engaging, viral short video script (TikTok/Reels) based on the topic above. 15-30 seconds total.
+CRITICAL: Do NOT just literally repeat or narrate the topic as a factual statement. Instead, craft a creative story, an engaging hook, or a natural narrative around the topic. Make it sound like a real person talking naturally (e.g., a vlog, a storytime, or a fun observation).
+
+Keep the main character generic.
 The "text" field for narration MUST be written in ${langName}. The "imagePrompt" and "characterDescription" fields MUST be in English.
 
 Respond with ONLY this JSON structure (no markdown, no fences, no extra text):

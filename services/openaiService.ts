@@ -62,7 +62,10 @@ export const generateOpenAIScript = async (
     ]
   }`;
 
-  const userPrompt = `Create a viral short video script about: "${topic}". 15-30 seconds total. Keep character generic.`;
+  const userPrompt = `Topic: "${topic}"
+
+Create a highly engaging, viral short video script (TikTok/Reels) based on the topic above. 15-30 seconds total.
+CRITICAL: Do NOT just literally repeat or narrate the topic as a factual statement. Instead, craft a creative story, an engaging hook, or a natural narrative around the topic. Make it sound like a real person talking naturally (e.g., a vlog, a storytime, or a fun observation). Keep the character generic.`;
 
   const scriptResponse = await fetchOpenAI('/chat/completions', {
     model: "gpt-4o",
