@@ -12,6 +12,19 @@ const getLanguageInstruction = (lang: VideoLanguage) => {
   }
 };
 
+/** Maps the app language to the correct MiniMax voice_id and language_boost */
+const getMinimaxVoiceConfig = (lang: VideoLanguage) => {
+  switch (lang) {
+    case 'pt-BR':
+      return { voice_id: "Portuguese_ConfidentWoman", language_boost: "Portuguese" };
+    case 'es-ES':
+      return { voice_id: "Spanish_SophiaConfident", language_boost: "Spanish" };
+    case 'en-US':
+    default:
+      return { voice_id: "English_ConfidentWoman", language_boost: "English" };
+  }
+};
+
 const fetchMinimax = async (endpoint: string, body: any, apiKey: string, signal?: AbortSignal) => {
   const response = await fetch(`${MINIMAX_BASE}${endpoint}`, {
     method: 'POST',
@@ -65,6 +78,7 @@ export const generateMinimaxScript = async (
 ): Promise<VideoScript> => {
 
   const langName = getLanguageInstruction(language);
+  const voiceConfig = getMinimaxVoiceConfig(language);
 
   // 1. Script (MiniMax-Text-01)
   onProgress?.(10, `Writing script in ${langName} with MiniMax-Text-01...`);
@@ -185,6 +199,7 @@ Respond with ONLY this JSON structure (no markdown, no fences, no extra text):
 
     if (groupId) {
       try {
+        console.log(`[MiniMax TTS] Scene ${i + 1}: voice_id="${voiceConfig.voice_id}", language_boost="${voiceConfig.language_boost}", text="${scene.text.slice(0, 60)}..."`);
         const ttsRes = await fetch(`${MINIMAX_BASE}/t2a_v2?GroupId=${encodeURIComponent(groupId)}`, {
           method: 'POST',
           headers: {
@@ -195,8 +210,9 @@ Respond with ONLY this JSON structure (no markdown, no fences, no extra text):
             model: "speech-02-hd",
             text: scene.text,
             stream: false,
+            language_boost: voiceConfig.language_boost,
             voice_setting: {
-              voice_id: "male-qn-qingse",
+              voice_id: voiceConfig.voice_id,
               speed: 1.0,
               vol: 1.0,
               pitch: 0
