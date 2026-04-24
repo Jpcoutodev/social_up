@@ -1,6 +1,7 @@
 import { VideoScript, Scene, VideoLanguage } from "../types";
 import { uploadAudioToStorage, uploadImageToStorage } from "../src/lib/supabase";
 import { supabase } from "../src/lib/supabase";
+import { getBrandPrompt } from "./geminiService";
 
 // Helper to handle Fetch with AbortSignal
 const fetchOpenAI = async (endpoint: string, body: any, apiKey: string, signal?: AbortSignal) => {
@@ -39,6 +40,7 @@ export const generateOpenAIScript = async (
 ): Promise<VideoScript> => {
   
   const langName = getLanguageInstruction(language);
+  const brandPrompt = getBrandPrompt();
 
   // 1. Script Generation (GPT-4o)
   onProgress?.(10, `Writing script in ${langName} with GPT-4o...`);
@@ -63,7 +65,7 @@ export const generateOpenAIScript = async (
   }`;
 
   const userPrompt = `Topic: "${topic}"
-
+${brandPrompt ? `\nBRAND GUIDELINES (follow strictly):\n${brandPrompt}\n` : ''}
 Create a highly engaging, viral short video script (TikTok/Reels) based on the topic above. 15-30 seconds total.
 CRITICAL: Do NOT just literally repeat or narrate the topic as a factual statement. Instead, craft a creative story, an engaging hook, or a natural narrative around the topic. Make it sound like a real person talking naturally (e.g., a vlog, a storytime, or a fun observation). Keep the character generic.`;
 

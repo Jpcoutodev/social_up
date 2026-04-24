@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { checkConnection, getApiKey, setApiKey, removeApiKey, getProvider, setProvider, getMinimaxGroupId, setMinimaxGroupId, getMinimaxVoiceId, setMinimaxVoiceId } from '../services/geminiService';
+import { checkConnection, getApiKey, setApiKey, removeApiKey, getProvider, setProvider, getMinimaxGroupId, setMinimaxGroupId, getMinimaxVoiceId, setMinimaxVoiceId, getBrandPrompt, setBrandPrompt as saveBrandPrompt } from '../services/geminiService';
 import { AIProvider } from '../types';
-import { CheckCircle2, XCircle, Loader2, Server, Key, ShieldCheck, Eye, EyeOff, Save, Trash2, Bot, Sparkles, Cpu, Zap } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Server, Key, ShieldCheck, Eye, EyeOff, Save, Trash2, Bot, Sparkles, Cpu, Zap, Building2 } from 'lucide-react';
 
 export const ConnectionStatus: React.FC = () => {
     const [status, setStatus] = useState<'idle' | 'checking' | 'connected' | 'error'>('idle');
@@ -23,6 +23,10 @@ export const ConnectionStatus: React.FC = () => {
     const [savedGemini, setSavedGemini] = useState(false);
     const [savedOpenai, setSavedOpenai] = useState(false);
     const [savedMinimax, setSavedMinimax] = useState(false);
+
+    // Brand Prompt
+    const [brandPrompt, setBrandPromptState] = useState('');
+    const [savedBrand, setSavedBrand] = useState(false);
 
     const loadSettings = () => {
         const provider = getProvider();
@@ -48,6 +52,12 @@ export const ConnectionStatus: React.FC = () => {
 
         setMinimaxGroup(getMinimaxGroupId());
         setMinimaxVoice(getMinimaxVoiceId());
+
+        const bp = getBrandPrompt();
+        if (bp) {
+            setBrandPromptState(bp);
+            setSavedBrand(true);
+        }
     };
 
     const runCheck = async () => {
@@ -179,6 +189,57 @@ export const ConnectionStatus: React.FC = () => {
                             <div className="text-xs text-slate-500 mt-1">Text-01 + image-01 + speech-02</div>
                         </div>
                     </button>
+                </div>
+
+                {/* BRAND PROMPT CARD - MOVED TO TOP */}
+                <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 to-blue-500" />
+
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                            <Building2 className="text-cyan-400" size={20} />
+                            Brand Prompt
+                        </h3>
+                        {savedBrand && (
+                            <div className="flex items-center gap-1 bg-cyan-600/20 border border-cyan-500/30 px-2 py-0.5 rounded-full text-[10px] text-cyan-300 font-bold">
+                                <CheckCircle2 size={10} /> Saved
+                            </div>
+                        )}
+                    </div>
+
+                    <p className="text-sm text-slate-400 mb-4">
+                        Define your brand identity, tone of voice, target audience, and communication style. This will be applied to <strong className="text-slate-300">all content generation</strong> (videos, images, and carousels).
+                    </p>
+
+                    <textarea
+                        value={brandPrompt}
+                        onChange={(e) => setBrandPromptState(e.target.value)}
+                        placeholder={`Example:\n• Brand: TechFlow - SaaS platform for productivity\n• Tone: Professional but friendly, modern\n• Audience: Entrepreneurs, 25-40 years old\n• Style: Inspiring, data-driven, use emojis sparingly\n• Colors: Blue and white\n• Avoid: Overly casual language, slang`}
+                        className="w-full bg-slate-900 border border-slate-600 rounded-lg p-4 text-sm text-white focus:ring-2 focus:ring-cyan-500 outline-none transition-all placeholder-slate-600 resize-none h-40 mb-4"
+                    />
+
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => { saveBrandPrompt(brandPrompt); setSavedBrand(true); }}
+                            disabled={!brandPrompt.trim()}
+                            className="flex items-center justify-center gap-2 px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Save size={18} /> Save Brand Prompt
+                        </button>
+                        {savedBrand && (
+                            <button
+                                onClick={() => { saveBrandPrompt(''); setBrandPromptState(''); setSavedBrand(false); }}
+                                className="px-4 py-3 bg-red-900/20 hover:bg-red-900/40 border border-red-800 text-red-400 rounded-lg"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center gap-2 text-[10px] text-slate-500">
+                        <ShieldCheck size={12} />
+                        <span>Brand prompt is injected into all AI content generation requests.</span>
+                    </div>
                 </div>
 
                 {/* API CONFIGURATION CARD */}
@@ -396,7 +457,6 @@ export const ConnectionStatus: React.FC = () => {
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     );

@@ -1,0 +1,231 @@
+{
+  "name": "Render Video FFmpeg Zoom",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "512c2ea0-6754-4b6b-973b-17b47dc02820",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "512c2ea0-6754-4b6b-973b-17b47dc02820"
+    },
+    {
+      "parameters": {
+        "jsCode": "const script = $input.item.json.body.script;\nconst title = $input.item.json.body.title;\nconst userId = $input.item.json.body.user_id;\nconst dbVideoId = $input.item.json.body.video_id;\n\nconst timestamp = Date.now();\nconst safeTitle = title.toLowerCase().replace(/[^a-z0-9]/g, '_');\nconst videoId = `${safeTitle}_${timestamp}`;\nconst workDir = `/home/node/.n8n-files/render_${videoId}`;\n\nreturn {\n  json: {\n    script,\n    title,\n    userId,\n    videoId,\n    dbVideoId,\n    workDir,\n    scenes: script.scenes,\n    sceneCount: script.scenes.length\n  }\n};"
+      },
+      "id": "process-input",
+      "name": "Process Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const scenes = $('Process Input').item.json.scenes;\nconst workDir = $('Process Input').item.json.workDir;\nconst userId = $('Process Input').item.json.userId;\nconst videoId = $('Process Input').item.json.videoId;\nconst outputVideo = `${workDir}/final_video.mp4`;\nconst scriptPath = `${workDir}/render.sh`;\n\n// Construir script bash\nlet bash = '#!/bin/sh\\nset -e\\n\\n';\nbash += `echo \"=== Starting render ===\"\\n\\n`;\n\n// Downloads\nfor (let i = 0; i < scenes.length; i++) {\n  const scene = scenes[i];\n  bash += `echo \"Downloading scene ${i}...\"\\n`;\n  bash += `wget -q -O \"${workDir}/image_${i}.png\" \"${scene.imageUrl}\"\\n`;\n  bash += `wget -q -O \"${workDir}/audio_${i}.wav\" \"${scene.audioUrl}\"\\n`;\n  bash += `ls -lah \"${workDir}/image_${i}.png\" \"${workDir}/audio_${i}.wav\"\\n`;\n}\n\nbash += `\\necho \"=== Rendering scenes ===\"\\n`;\n\n// Render cada cena\nfor (let i = 0; i < scenes.length; i++) {\n  const scene = scenes[i];\n  const duration = scene.durationInSeconds;\n  const frames = Math.ceil(duration * 30);\n  const zoomSpeed = (0.2 / duration).toFixed(8);\n  \n  bash += `echo \"Rendering scene ${i}...\"\\n`;\n  bash += `ffmpeg -y -loop 1 -i \"${workDir}/image_${i}.png\" -i \"${workDir}/audio_${i}.wav\" -vf \"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,zoompan=z='min(1+${zoomSpeed}*on/${frames},1.2)':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30\" -c:v libx264 -preset fast -c:a aac -shortest -pix_fmt yuv420p \"${workDir}/scene_${i}.mp4\"\\n`;\n  bash += `echo \"Scene ${i} done\"\\n\\n`;\n}\n\n// Concat file\nbash += `> \"${workDir}/concat.txt\"\\n`;\nfor (let i = 0; i < scenes.length; i++) {\n  bash += `echo \"file '${workDir}/scene_${i}.mp4'\" >> \"${workDir}/concat.txt\"\\n`;\n}\n\n// Concatenar\nbash += `echo \"=== Concatenating ===\"\\n`;\nbash += `ffmpeg -y -f concat -safe 0 -i \"${workDir}/concat.txt\" -c copy \"${outputVideo}\"\\n`;\nbash += `echo \"Done: $(ls -lah ${outputVideo})\"\\n`;\n\n// Converter para base64 (sem quebras de linha)\nconst scriptBase64 = Buffer.from(bash).toString('base64').replace(/\\n/g, '');\n\nreturn [{ json: { scriptBase64, scriptPath, outputVideo, workDir, userId, videoId } }];"
+      },
+      "id": "build-script",
+      "name": "Build Render Script",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "command": "=mkdir -p {{$json.workDir}} && echo {{$json.scriptBase64}} | base64 -d > {{$json.scriptPath}} && chmod +x {{$json.scriptPath}} && {{$json.scriptPath}} 2>&1"
+      },
+      "id": "execute-render",
+      "name": "Execute Render Script",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const outputVideo = $('Build Render Script').item.json.outputVideo;\nconst userId = $('Build Render Script').item.json.userId;\nconst videoId = $('Build Render Script').item.json.videoId;\nconst workDir = $('Build Render Script').item.json.workDir;\n\nreturn [{ json: { outputVideo, userId, videoId, workDir } }];"
+      },
+      "id": "prepare-upload",
+      "name": "Prepare Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "filePath": "={{$json.outputVideo}}",
+        "options": {}
+      },
+      "id": "read-video",
+      "name": "Read Video File",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://qgbxduvipeadycxremqa.supabase.co/storage/v1/object/rendered-videos/{{$('Prepare Upload').item.json.userId}}/{{$('Prepare Upload').item.json.videoId}}.mp4",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYnhkdXZpcGVhZHljeHJlbXFhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNzIxNDQ5MywiZXhwIjoyMDUyNzkwNDkzfQ.xfcAq7TbHH4pqeMQO7RlvxdVBr8r5uWvYYmqo-jRf_4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYnhkdXZpcGVhZHljeHJlbXFhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNzIxNDQ5MywiZXhwIjoyMDUyNzkwNDkzfQ.xfcAq7TbHH4pqeMQO7RlvxdVBr8r5uWvYYmqo-jRf_4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "video/mp4"
+            }
+          ]
+        },
+        "options": {
+          "bodyContentType": "raw"
+        }
+      },
+      "id": "upload-supabase",
+      "name": "Upload to Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const userId = $('Prepare Upload').item.json.userId;\nconst videoId = $('Prepare Upload').item.json.videoId;\nconst title = $('Process Input').item.json.title;\n\nconst publicUrl = `https://qgbxduvipeadycxremqa.supabase.co/storage/v1/object/public/rendered-videos/${userId}/${videoId}.mp4`;\n\nreturn [{ json: { videoUrl: publicUrl, userId, title } }];"
+      },
+      "id": "build-url",
+      "name": "Build Video URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://qgbxduvipeadycxremqa.supabase.co/rest/v1/social_videos?id=eq.{{$('Process Input').item.json.dbVideoId}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYnhkdXZpcGVhZHljeHJlbXFhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNzIxNDQ5MywiZXhwIjoyMDUyNzkwNDkzfQ.xfcAq7TbHH4pqeMQO7RlvxdVBr8r5uWvYYmqo-jRf_4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYnhkdXZpcGVhZHljeHJlbXFhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNzIxNDQ5MywiZXhwIjoyMDUyNzkwNDkzfQ.xfcAq7TbHH4pqeMQO7RlvxdVBr8r5uWvYYmqo-jRf_4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"video_url\": \"{{$json.videoUrl}}\" }",
+        "options": {}
+      },
+      "id": "save-database",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"videoUrl\": \"{{$('Build Video URL').item.json.videoUrl}}\" }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "command": "=rm -rf {{$('Build Render Script').item.json.workDir}}"
+      },
+      "id": "cleanup",
+      "name": "Cleanup",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Process Input", "type": "main", "index": 0 }]]
+    },
+    "Process Input": {
+      "main": [[{ "node": "Build Render Script", "type": "main", "index": 0 }]]
+    },
+    "Build Render Script": {
+      "main": [[{ "node": "Execute Render Script", "type": "main", "index": 0 }]]
+    },
+    "Execute Render Script": {
+      "main": [[{ "node": "Prepare Upload", "type": "main", "index": 0 }]]
+    },
+    "Prepare Upload": {
+      "main": [[{ "node": "Read Video File", "type": "main", "index": 0 }]]
+    },
+    "Read Video File": {
+      "main": [[{ "node": "Upload to Supabase", "type": "main", "index": 0 }]]
+    },
+    "Upload to Supabase": {
+      "main": [[{ "node": "Build Video URL", "type": "main", "index": 0 }]]
+    },
+    "Build Video URL": {
+      "main": [[{ "node": "Save to Database", "type": "main", "index": 0 }]]
+    },
+    "Save to Database": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    },
+    "Respond to Webhook": {
+      "main": [[{ "node": "Cleanup", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-02-17T00:00:00.000Z",
+  "versionId": "3"
+}

@@ -4,13 +4,15 @@ import { ConnectionStatus } from './components/ConnectionStatus';
 import { SocialConnection } from './components/SocialConnection';
 import { AuthScreen } from './components/AuthScreen';
 import { MyVideos } from './components/MyVideos';
-import { Activity, LayoutDashboard, Settings2, Sparkles, Share2, LogOut, FileVideo } from 'lucide-react';
+import { MyImages } from './components/MyImages';
+import { GeneratorCarousel } from './components/GeneratorCarousel';
+import { Activity, LayoutDashboard, Settings2, Sparkles, Share2, LogOut, FileVideo, ImageIcon, FolderOpen } from 'lucide-react';
 import { supabase } from './src/lib/supabase';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'my-videos' | 'connection' | 'social'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'generator-carousel' | 'my-videos' | 'my-images' | 'connection' | 'social'>('dashboard');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -66,8 +68,16 @@ const App: React.FC = () => {
             active={activeTab === 'dashboard'}
             onClick={() => setActiveTab('dashboard')}
             icon={<LayoutDashboard size={20} />}
-            label="Generator"
-            description="Create new content"
+            label="Generator Videos"
+            description="Create video content"
+          />
+
+          <NavItem
+            active={activeTab === 'generator-carousel'}
+            onClick={() => setActiveTab('generator-carousel')}
+            icon={<ImageIcon size={20} />}
+            label="Generator Image"
+            description="Images & Carousels"
           />
 
           <NavItem
@@ -76,6 +86,14 @@ const App: React.FC = () => {
             icon={<FileVideo size={20} />}
             label="My Videos"
             description="Saved Library"
+          />
+
+          <NavItem
+            active={activeTab === 'my-images'}
+            onClick={() => setActiveTab('my-images')}
+            icon={<FolderOpen size={20} />}
+            label="My Images"
+            description="Images & Carousels"
           />
 
           <NavItem
@@ -127,9 +145,11 @@ const App: React.FC = () => {
         {/* Header */}
         <header className="h-16 bg-slate-900/80 backdrop-blur border-b border-slate-800 flex items-center justify-center px-8 z-20">
           <h1 className="text-xl font-semibold text-white capitalize">
-            {activeTab === 'dashboard' ? 'Content Generator' :
+            {activeTab === 'dashboard' ? 'Video Generator' :
+              activeTab === 'generator-carousel' ? 'Image / Carrossel Generator' :
               activeTab === 'social' ? 'Social Integrations' :
-                activeTab === 'my-videos' ? 'My Library' : 'System Connection'}
+                activeTab === 'my-videos' ? 'My Library' :
+                activeTab === 'my-images' ? 'My Images' : 'System Connection'}
           </h1>
           <div className="absolute right-8 flex items-center gap-3">
             <div className="text-right hidden sm:block">
@@ -145,7 +165,9 @@ const App: React.FC = () => {
         {/* Content Container */}
         <main className="flex-1 overflow-hidden relative">
           {activeTab === 'dashboard' && <Dashboard />}
+          {activeTab === 'generator-carousel' && <GeneratorCarousel />}
           {activeTab === 'my-videos' && <MyVideos />}
+          {activeTab === 'my-images' && <MyImages />}
           {activeTab === 'social' && <SocialConnection />}
           {activeTab === 'connection' && <ConnectionStatus />}
         </main>

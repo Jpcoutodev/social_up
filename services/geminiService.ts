@@ -76,6 +76,19 @@ export const setMinimaxVoiceId = (voiceId: string) => {
   else localStorage.removeItem(LOCAL_STORAGE_KEY_MINIMAX_VOICE);
 };
 
+// --- BRAND PROMPT ---
+const LOCAL_STORAGE_KEY_BRAND_PROMPT = 'brand_prompt';
+
+export const getBrandPrompt = (): string => {
+  return (localStorage.getItem(LOCAL_STORAGE_KEY_BRAND_PROMPT) || '').trim();
+};
+
+export const setBrandPrompt = (prompt: string) => {
+  const clean = prompt.trim();
+  if (clean) localStorage.setItem(LOCAL_STORAGE_KEY_BRAND_PROMPT, clean);
+  else localStorage.removeItem(LOCAL_STORAGE_KEY_BRAND_PROMPT);
+};
+
 // --- GEMINI SPECIFIC HELPERS ---
 
 const getGeminiClient = (): GoogleGenAI => {
@@ -296,10 +309,11 @@ export const generateScript = async (
   await new Promise(r => setTimeout(r, 800));
 
   const langName = getLanguageInstruction(language);
+  const brandPrompt = getBrandPrompt();
   onProgress?.(10, `Writing script in ${langName} with Gemini AI...`);
 
   const scriptPrompt = `Topic: "${topic}"
-
+${brandPrompt ? `\nBRAND GUIDELINES (follow strictly):\n${brandPrompt}\n` : ''}
 Create a highly engaging, viral short-form video script (TikTok/Reels) based on the topic above. 15-30 seconds total.
 CRITICAL: Do NOT just literally repeat or narrate the topic as a factual statement. Instead, craft a creative story, an engaging hook, or a natural narrative around the topic. Make it sound like a real person talking naturally (e.g., a vlog, a storytime, or a fun observation).
   

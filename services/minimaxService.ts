@@ -1,6 +1,7 @@
 import { VideoScript, Scene, VideoLanguage } from "../types";
 import { uploadAudioToStorage, uploadImageToStorage } from "../src/lib/supabase";
 import { supabase } from "../src/lib/supabase";
+import { getBrandPrompt } from "./geminiService";
 
 const MINIMAX_BASE = "https://api.minimaxi.chat/v1";
 
@@ -92,8 +93,10 @@ export const generateMinimaxScript = async (
 
   const systemPrompt = `You are a JSON-only API. You MUST respond with a single valid JSON object and NOTHING else. No markdown, no code fences, no prose, no explanations. Your entire response must be parseable by JSON.parse().`;
 
-  const userPrompt = `Topic: "${topic}"
+  const brandPrompt = getBrandPrompt();
 
+  const userPrompt = `Topic: "${topic}"
+${brandPrompt ? `\nBRAND GUIDELINES (follow strictly):\n${brandPrompt}\n` : ''}
 Create a highly engaging, viral short video script (TikTok/Reels) based on the topic above. 15-30 seconds total.
 CRITICAL: Do NOT just literally repeat or narrate the topic as a factual statement. Instead, craft a creative story, an engaging hook, or a natural narrative around the topic. Make it sound like a real person talking naturally (e.g., a vlog, a storytime, or a fun observation).
 
