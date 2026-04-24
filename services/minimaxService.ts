@@ -233,13 +233,26 @@ Respond with ONLY this JSON structure (no markdown, no fences, no extra text):
         }
 
         const ttsJson = await ttsRes.json();
+        
+        // Check for API-level error (MiniMax can return HTTP 200 but with error in base_resp)
+        if (ttsJson.base_resp && ttsJson.base_resp.status_code !== 0) {
+          console.error(`[MiniMax TTS] API error: code=${ttsJson.base_resp.status_code}, msg="${ttsJson.base_resp.status_msg}"`);
+          throw new Error(`MiniMax TTS API Error: ${ttsJson.base_resp.status_msg}`);
+        }
+        
+        console.log(`[MiniMax TTS] Response keys: ${Object.keys(ttsJson).join(', ')}`);
+        console.log(`[MiniMax TTS] data keys: ${ttsJson.data ? Object.keys(ttsJson.data).join(', ') : 'NO DATA FIELD'}`);
+        
         const hexAudio: string | undefined = ttsJson?.data?.audio;
-        if (hexAudio) {
+        console.log(`[MiniMax TTS] Audio hex length: ${hexAudio ? hexAudio.length : 'EMPTY/NULL'}`);
+        
+        if (hexAudio && hexAudio.length > 0) {
           const bytes = new Uint8Array(hexAudio.length / 2);
           for (let b = 0; b < bytes.length; b++) {
             bytes[b] = parseInt(hexAudio.substr(b * 2, 2), 16);
           }
           const blob = new Blob([bytes], { type: 'audio/mpeg' });
+          console.log(`[MiniMax TTS] Audio blob size: ${blob.size} bytes`);
 
           const { data: { user } } = await supabase.auth.getUser();
           const timestamp = Date.now();
@@ -247,12 +260,14 @@ Respond with ONLY this JSON structure (no markdown, no fences, no extra text):
 
           try {
             audioUrl = await uploadAudioToStorage(blob, audioFilename, user?.id);
-            console.log('MiniMax audio uploaded to Supabase:', audioUrl);
+            console.log('[MiniMax TTS] Audio uploaded to Supabase:', audioUrl);
           } catch (uploadError) {
-            console.error('Failed to upload MiniMax audio:', uploadError);
+            console.error('[MiniMax TTS] Failed to upload audio, using blob URL:', uploadError);
             audioUrl = URL.createObjectURL(blob);
           }
           finalDuration = Math.max(scene.durationInSeconds, 2.0);
+        } else {
+          console.warn(`[MiniMax TTS] No audio data received! Full response:`, JSON.stringify(ttsJson).slice(0, 500));
         }
       } catch (err) {
         console.error("MiniMax TTS failed:", err);
