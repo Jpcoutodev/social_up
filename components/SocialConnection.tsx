@@ -28,7 +28,7 @@ export const SocialConnection: React.FC = () => {
       name: 'YouTube Shorts',
       icon: <Youtube size={24} />,
       color: 'bg-red-600',
-      description: 'Auto-post to your channel as Shorts.',
+      description: 'Poste automaticamente no seu canal como Shorts.',
       connected: false
     },
     {
@@ -36,7 +36,7 @@ export const SocialConnection: React.FC = () => {
       name: 'Instagram Reels',
       icon: <Instagram size={24} />,
       color: 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500',
-      description: 'Share directly to your Reels feed.',
+      description: 'Compartilhe diretamente no seu feed do Reels.',
       connected: false
     },
     {
@@ -44,7 +44,7 @@ export const SocialConnection: React.FC = () => {
       name: 'TikTok',
       icon: <TikTokIcon />,
       color: 'bg-black border border-slate-700',
-      description: 'Sync with your TikTok profile.',
+      description: 'Sincronize com seu perfil do TikTok.',
       connected: false
     },
     {
@@ -52,7 +52,7 @@ export const SocialConnection: React.FC = () => {
       name: 'Facebook Reels',
       icon: <Facebook size={24} />,
       color: 'bg-blue-600',
-      description: 'Publish to your Page or Profile.',
+      description: 'Publique na sua Página ou Perfil.',
       connected: false
     }
   ]);
@@ -84,7 +84,7 @@ export const SocialConnection: React.FC = () => {
 
   const saveN8nConfig = () => {
     localStorage.setItem('n8n_config', JSON.stringify({ webhookUrl: n8nUrl, bundleUrl }));
-    alert('n8n Configuration Saved!');
+    alert('Configuração n8n Salva!');
   };
 
   const handleConnect = (id: string) => {
@@ -132,22 +132,22 @@ export const SocialConnection: React.FC = () => {
     <div className="p-8 max-w-6xl mx-auto h-full overflow-y-auto custom-scrollbar">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-white mb-2">Social Integrations</h2>
-          <p className="text-slate-400">Connect your accounts to enable one-click publishing.</p>
+          <h2 className="text-3xl font-bold text-white mb-2">Integrações Sociais</h2>
+          <p className="text-slate-400">Conecte suas contas para publicar com um clique.</p>
         </div>
         <div className="bg-slate-800 p-3 rounded-lg border border-slate-700 flex items-center gap-2 text-sm text-slate-300">
           <Share2 size={16} />
-          <span>Auto-Publish Enabled</span>
+          <span>Auto-Publicação Ativada</span>
         </div>
       </div>
 
       {/* n8n Configuration Section */}
       <div className="mb-8 bg-slate-900/50 border border-purple-500/30 p-6 rounded-xl">
         <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-          ⚡ n8n Automation Setup
+          ⚡ Configuração Automação n8n
         </h3>
         <p className="text-slate-400 text-sm mb-4">
-          Configure your n8n Webhook and Hosted Bundle to enable Cloud Rendering & Posting.
+          Configure seu Webhook do n8n e Hosted Bundle para permitir Renderização e Publicação em Nuvem.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -177,7 +177,7 @@ export const SocialConnection: React.FC = () => {
             onClick={saveN8nConfig}
             className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-colors"
           >
-            Save Configuration
+            Salvar Configuração
           </button>
         </div>
       </div>
@@ -203,12 +203,12 @@ export const SocialConnection: React.FC = () => {
                 {account.connected ? (
                   <div className="bg-black/30 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-bold text-white border border-white/20">
                     <CheckCircle2 size={12} className="text-green-400" />
-                    CONNECTED
+                    CONECTADO
                   </div>
                 ) : (
                   <div className="bg-black/30 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-bold text-slate-400 border border-white/10">
                     <div className="w-2 h-2 rounded-full bg-slate-500" />
-                    DISCONNECTED
+                    DESCONECTADO
                   </div>
                 )}
               </div>
@@ -225,7 +225,7 @@ export const SocialConnection: React.FC = () => {
 
               {account.connected && (
                 <div className="mb-6 p-3 bg-slate-950/50 rounded-lg border border-slate-700/50 flex items-center justify-between">
-                  <span className="text-xs text-slate-500 font-mono">ACCOUNT</span>
+                  <span className="text-xs text-slate-500 font-mono">CONTA</span>
                   <span className="text-sm text-white font-medium">{account.username}</span>
                 </div>
               )}
@@ -235,7 +235,7 @@ export const SocialConnection: React.FC = () => {
                   <>
                     <button className="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
                       <ExternalLink size={16} />
-                      View Channel
+                      Ver Canal
                     </button>
                     <button
                       onClick={() => handleDisconnect(account.id)}
@@ -258,11 +258,11 @@ export const SocialConnection: React.FC = () => {
                     {loadingId === account.id ? (
                       <>
                         <Loader2 className="animate-spin" size={16} />
-                        Connecting...
+                        Conectando...
                       </>
                     ) : (
                       <>
-                        Connect {account.name}
+                        Conectar {account.name}
                       </>
                     )}
                   </button>

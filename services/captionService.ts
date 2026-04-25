@@ -414,7 +414,7 @@ export async function generatePostImage(
   const aspect = getAspectConfig(platform);
   const fullPrompt = `High quality, professional social media post. ${imagePrompt}. Clean design, modern aesthetic, no text overlays.`;
 
-  onProgress?.('Generating image...');
+  onProgress?.('Gerando imagem...');
 
   let rawImage: string;
   if (provider === 'openai') {
@@ -426,10 +426,10 @@ export async function generatePostImage(
   }
 
   // Overlay text on the raw base64 BEFORE uploading (avoids CORS)
-  onProgress?.('Adding caption...');
+  onProgress?.('Adicionando legenda...');
   const withTextBase64 = await overlayTextOnImage(rawImage, caption);
 
-  onProgress?.('Uploading...');
+  onProgress?.('Enviando...');
   const [imageUrl, imageWithTextUrl] = await Promise.all([
     uploadImage(rawImage, 0),
     uploadImage(withTextBase64, 1),

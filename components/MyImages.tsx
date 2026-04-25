@@ -113,8 +113,8 @@ export const MyImages: React.FC = () => {
               <ImageIcon size={20} className="text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">My Images</h2>
-              <p className="text-xs text-slate-500">{filteredImages.length} item{filteredImages.length !== 1 ? 's' : ''}</p>
+              <h2 className="text-lg font-bold text-white">Minhas Imagens</h2>
+              <p className="text-xs text-slate-500">{filteredImages.length} ite{filteredImages.length !== 1 ? 'ns' : 'm'}</p>
             </div>
           </div>
 
@@ -125,7 +125,7 @@ export const MyImages: React.FC = () => {
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filter === f
                   ? 'bg-purple-600 text-white shadow-lg'
                   : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}>
-                {f === 'all' ? 'All' : f === 'image' ? 'Images' : 'Carousels'}
+                {f === 'all' ? 'Todos' : f === 'image' ? 'Imagens' : 'Carrosséis'}
               </button>
             ))}
           </div>
@@ -138,7 +138,7 @@ export const MyImages: React.FC = () => {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search by topic, caption..."
+            placeholder="Buscar por tema, legenda..."
             className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
           />
         </div>
@@ -151,9 +151,9 @@ export const MyImages: React.FC = () => {
             <div className="w-24 h-24 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-4">
               <ImageIcon size={40} className="text-slate-600" />
             </div>
-            <h3 className="text-xl font-bold text-slate-400 mb-2">No images yet</h3>
+            <h3 className="text-xl font-bold text-slate-400 mb-2">Nenhuma imagem ainda</h3>
             <p className="text-sm text-slate-500 max-w-sm">
-              Generate images or carousels in the Generator tab. They'll appear here automatically.
+              Gere imagens ou carrosséis na aba Gerador. Elas aparecerão aqui automaticamente.
             </p>
           </div>
         ) : (
@@ -174,7 +174,7 @@ export const MyImages: React.FC = () => {
                     <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase backdrop-blur ${img.type === 'carousel'
                       ? 'bg-violet-600/80 text-white'
                       : 'bg-pink-600/80 text-white'}`}>
-                      {img.type === 'carousel' ? <><LayoutGrid size={10} className="inline mr-1" />{img.slides?.length} slides</> : <><ImageIcon size={10} className="inline mr-1" />Image</>}
+                      {img.type === 'carousel' ? <><LayoutGrid size={10} className="inline mr-1" />{img.slides?.length} slides</> : <><ImageIcon size={10} className="inline mr-1" />Imagem</>}
                     </span>
                   </div>
                   {/* Platform badge */}
@@ -206,11 +206,11 @@ export const MyImages: React.FC = () => {
                         <div className="flex gap-1">
                           <button onClick={() => handleDelete(img.id)}
                             className="px-2 py-1 rounded-lg bg-red-600 text-white text-[10px] font-bold hover:bg-red-500 transition-colors">
-                            Yes
+                            Sim
                           </button>
                           <button onClick={() => setDeleteConfirm(null)}
                             className="px-2 py-1 rounded-lg bg-slate-600 text-white text-[10px] font-bold hover:bg-slate-500 transition-colors">
-                            No
+                            Não
                           </button>
                         </div>
                       ) : (
@@ -256,12 +256,12 @@ export const MyImages: React.FC = () => {
                   <button onClick={() => setShowWithText(!showWithText)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 border border-slate-600 text-slate-300 hover:bg-slate-600 transition-colors">
                     {showWithText ? <ToggleRight size={14} className="text-purple-400" /> : <ToggleLeft size={14} />}
-                    {showWithText ? 'Caption' : 'Clean'}
+                    {showWithText ? 'Legenda' : 'Limpa'}
                   </button>
                 </div>
                 {showWithText && (
                   <div className="flex items-center gap-3 flex-1 max-w-xs">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase whitespace-nowrap">Font</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase whitespace-nowrap">Fonte</span>
                     <input type="range" min="0.4" max="2.0" step="0.1" value={fontScale}
                       onChange={(e) => setFontScale(parseFloat(e.target.value))}
                       className="flex-1 h-1.5 bg-slate-700 rounded-full appearance-none cursor-pointer accent-purple-500" />
@@ -270,7 +270,7 @@ export const MyImages: React.FC = () => {
                 )}
                 <a href={getDisplayUrl()} download="image.png" target="_blank" rel="noreferrer"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 transition-colors">
-                  <Download size={12} /> Download
+                  <Download size={12} /> Baixar
                 </a>
               </div>
 
@@ -313,7 +313,7 @@ export const MyImages: React.FC = () => {
               {/* Caption */}
               <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
                 <div className="flex items-center gap-2 text-pink-400 text-xs font-bold uppercase tracking-wider mb-2">
-                  <MessageSquare size={12} />Caption
+                  <MessageSquare size={12} />Legenda
                 </div>
                 <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
                   {selectedImage.type === 'carousel' && selectedImage.slides?.[carouselIndex]
@@ -337,12 +337,12 @@ export const MyImages: React.FC = () => {
             <div className="p-4 border-t border-slate-700 flex justify-between">
               <button onClick={() => { handleDelete(selectedImage.id); }}
                 className="px-4 py-2 rounded-lg bg-red-600/20 border border-red-500/30 text-red-400 text-sm font-medium hover:bg-red-600/30 transition-colors flex items-center gap-2">
-                <Trash2 size={14} />Delete
+                <Trash2 size={14} />Excluir
               </button>
               <a href={getDisplayUrl()}
                 download target="_blank" rel="noreferrer"
                 className="px-4 py-2 rounded-lg bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 text-sm font-medium hover:bg-emerald-600/30 transition-colors flex items-center gap-2">
-                <Download size={14} />Download
+                <Download size={14} />Baixar
               </a>
             </div>
           </div>

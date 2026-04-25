@@ -125,8 +125,8 @@ export const ConnectionStatus: React.FC = () => {
     return (
         <div className="p-8 max-w-4xl mx-auto w-full h-full overflow-y-auto custom-scrollbar">
             <div className="mb-8">
-                <h2 className="text-3xl font-bold text-white mb-2">AI Engine Settings</h2>
-                <p className="text-slate-400">Choose your AI provider and configure access keys.</p>
+                <h2 className="text-3xl font-bold text-white mb-2">Configurações de IA</h2>
+                <p className="text-slate-400">Escolha seu provedor de IA e configure as chaves de acesso.</p>
             </div>
 
             <div className="grid grid-cols-1 gap-8">
@@ -142,13 +142,13 @@ export const ConnectionStatus: React.FC = () => {
                     >
                         {selectedProvider === 'gemini' && (
                             <div className="absolute top-2 right-2 flex items-center gap-1 bg-purple-600/30 border border-purple-500/50 px-2 py-0.5 rounded-full text-[10px] text-purple-200 font-bold uppercase">
-                                <CheckCircle2 size={10} /> Active
+                                <CheckCircle2 size={10} /> Ativo
                             </div>
                         )}
                         <Sparkles size={32} className={selectedProvider === 'gemini' ? 'text-purple-400' : 'text-slate-500'} />
                         <div className="text-center">
                             <div className={`font-bold ${selectedProvider === 'gemini' ? 'text-white' : 'text-slate-400'}`}>Google Gemini</div>
-                            <div className="text-xs text-slate-500 mt-1">Free Tier Available</div>
+                            <div className="text-xs text-slate-500 mt-1">Plano Gratuito Disponível</div>
                         </div>
                     </button>
 
@@ -161,13 +161,13 @@ export const ConnectionStatus: React.FC = () => {
                     >
                         {selectedProvider === 'openai' && (
                             <div className="absolute top-2 right-2 flex items-center gap-1 bg-green-600/30 border border-green-500/50 px-2 py-0.5 rounded-full text-[10px] text-green-200 font-bold uppercase">
-                                <CheckCircle2 size={10} /> Active
+                                <CheckCircle2 size={10} /> Ativo
                             </div>
                         )}
                         <Bot size={32} className={selectedProvider === 'openai' ? 'text-green-400' : 'text-slate-500'} />
                         <div className="text-center">
                             <div className={`font-bold ${selectedProvider === 'openai' ? 'text-white' : 'text-slate-400'}`}>OpenAI GPT-4o</div>
-                            <div className="text-xs text-slate-500 mt-1">Paid API Only</div>
+                            <div className="text-xs text-slate-500 mt-1">Somente API Paga</div>
                         </div>
                     </button>
 
@@ -180,7 +180,7 @@ export const ConnectionStatus: React.FC = () => {
                     >
                         {selectedProvider === 'minimax' && (
                             <div className="absolute top-2 right-2 flex items-center gap-1 bg-orange-600/30 border border-orange-500/50 px-2 py-0.5 rounded-full text-[10px] text-orange-200 font-bold uppercase">
-                                <CheckCircle2 size={10} /> Active
+                                <CheckCircle2 size={10} /> Ativo
                             </div>
                         )}
                         <Zap size={32} className={selectedProvider === 'minimax' ? 'text-orange-400' : 'text-slate-500'} />
@@ -198,23 +198,23 @@ export const ConnectionStatus: React.FC = () => {
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                             <Building2 className="text-cyan-400" size={20} />
-                            Brand Prompt
+                            Prompt da Marca
                         </h3>
                         {savedBrand && (
                             <div className="flex items-center gap-1 bg-cyan-600/20 border border-cyan-500/30 px-2 py-0.5 rounded-full text-[10px] text-cyan-300 font-bold">
-                                <CheckCircle2 size={10} /> Saved
+                                <CheckCircle2 size={10} /> Salvo
                             </div>
                         )}
                     </div>
 
                     <p className="text-sm text-slate-400 mb-4">
-                        Define your brand identity, tone of voice, target audience, and communication style. This will be applied to <strong className="text-slate-300">all content generation</strong> (videos, images, and carousels).
+                        Defina a identidade da sua marca, tom de voz, público-alvo e estilo de comunicação. Isso será aplicado a <strong className="text-slate-300">toda geração de conteúdo</strong> (vídeos, imagens e carrosséis).
                     </p>
 
                     <textarea
                         value={brandPrompt}
                         onChange={(e) => setBrandPromptState(e.target.value)}
-                        placeholder={`Example:\n• Brand: TechFlow - SaaS platform for productivity\n• Tone: Professional but friendly, modern\n• Audience: Entrepreneurs, 25-40 years old\n• Style: Inspiring, data-driven, use emojis sparingly\n• Colors: Blue and white\n• Avoid: Overly casual language, slang`}
+                        placeholder={`Exemplo:\n• Marca: TechFlow - Plataforma SaaS para produtividade\n• Tom: Profissional mas amigável, moderno\n• Público: Empreendedores, 25-40 anos\n• Estilo: Inspirador, baseado em dados, usar emojis com moderação\n• Cores: Azul e branco\n• Evitar: Linguagem muito casual, gírias`}
                         className="w-full bg-slate-900 border border-slate-600 rounded-lg p-4 text-sm text-white focus:ring-2 focus:ring-cyan-500 outline-none transition-all placeholder-slate-600 resize-none h-40 mb-4"
                     />
 
@@ -224,7 +224,7 @@ export const ConnectionStatus: React.FC = () => {
                             disabled={!brandPrompt.trim()}
                             className="flex items-center justify-center gap-2 px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <Save size={18} /> Save Brand Prompt
+                            <Save size={18} /> Salvar Prompt da Marca
                         </button>
                         {savedBrand && (
                             <button
@@ -238,7 +238,7 @@ export const ConnectionStatus: React.FC = () => {
 
                     <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center gap-2 text-[10px] text-slate-500">
                         <ShieldCheck size={12} />
-                        <span>Brand prompt is injected into all AI content generation requests.</span>
+                        <span>O prompt da marca é injetado em todas as solicitações de geração de conteúdo por IA.</span>
                     </div>
                 </div>
 
@@ -258,16 +258,16 @@ export const ConnectionStatus: React.FC = () => {
                                 selectedProvider === 'openai' ? 'text-green-400' :
                                 'text-orange-400'
                             } size={20} />
-                            {selectedProvider === 'gemini' ? 'Gemini API Configuration' :
-                             selectedProvider === 'openai' ? 'OpenAI API Configuration' :
-                             'MiniMax API Configuration'}
+                            {selectedProvider === 'gemini' ? 'Configuração API Gemini' :
+                             selectedProvider === 'openai' ? 'Configuração API OpenAI' :
+                             'Configuração API MiniMax'}
                         </h3>
                     </div>
 
                     {/* GEMINI INPUT */}
                     <div className={selectedProvider === 'gemini' ? 'block' : 'hidden'}>
                         <p className="text-sm text-slate-400 mb-4">
-                            Enter your Google Gemini API Key. (Get it from Google AI Studio)
+                            Insira sua chave de API do Google Gemini. (Obtenha no Google AI Studio)
                         </p>
                         <div className="flex flex-col md:flex-row gap-3">
                             <div className="relative flex-1">
@@ -275,7 +275,7 @@ export const ConnectionStatus: React.FC = () => {
                                     type={showKey ? "text" : "password"}
                                     value={geminiKey}
                                     onChange={(e) => setGeminiKey(e.target.value)}
-                                    placeholder="Paste Gemini Key (AIza...)"
+                                    placeholder="Cole a chave Gemini (AIza...)"
                                     className="w-full bg-slate-900 border border-slate-600 rounded-lg py-3 pl-4 pr-12 text-sm text-white focus:ring-2 focus:ring-purple-500 outline-none"
                                 />
                                 <button onClick={() => setShowKey(!showKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
@@ -283,7 +283,7 @@ export const ConnectionStatus: React.FC = () => {
                                 </button>
                             </div>
                             <button onClick={() => handleSaveKey('gemini')} className="flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-lg transition-colors">
-                                <Save size={18} /> Save
+                                <Save size={18} /> Salvar
                             </button>
                             {savedGemini && (
                                 <button onClick={() => handleRemoveKey('gemini')} className="px-4 py-3 bg-red-900/20 hover:bg-red-900/40 border border-red-800 text-red-400 rounded-lg">
@@ -296,7 +296,7 @@ export const ConnectionStatus: React.FC = () => {
                     {/* OPENAI INPUT */}
                     <div className={selectedProvider === 'openai' ? 'block' : 'hidden'}>
                         <p className="text-sm text-slate-400 mb-4">
-                            Enter your OpenAI API Key. (Requires billing enabled for GPT-4o & DALL-E 3)
+                            Insira sua chave de API do OpenAI. (Requer cobrança ativada para GPT-4o e DALL-E 3)
                         </p>
                         <div className="flex flex-col md:flex-row gap-3">
                             <div className="relative flex-1">
@@ -304,7 +304,7 @@ export const ConnectionStatus: React.FC = () => {
                                     type={showKey ? "text" : "password"}
                                     value={openaiKey}
                                     onChange={(e) => setOpenaiKey(e.target.value)}
-                                    placeholder="Paste OpenAI Key (sk-...)"
+                                    placeholder="Cole a chave OpenAI (sk-...)"
                                     className="w-full bg-slate-900 border border-slate-600 rounded-lg py-3 pl-4 pr-12 text-sm text-white focus:ring-2 focus:ring-green-500 outline-none"
                                 />
                                 <button onClick={() => setShowKey(!showKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
@@ -312,7 +312,7 @@ export const ConnectionStatus: React.FC = () => {
                                 </button>
                             </div>
                             <button onClick={() => handleSaveKey('openai')} className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg transition-colors">
-                                <Save size={18} /> Save
+                                <Save size={18} /> Salvar
                             </button>
                             {savedOpenai && (
                                 <button onClick={() => handleRemoveKey('openai')} className="px-4 py-3 bg-red-900/20 hover:bg-red-900/40 border border-red-800 text-red-400 rounded-lg">
@@ -325,7 +325,7 @@ export const ConnectionStatus: React.FC = () => {
                     {/* MINIMAX INPUT */}
                     <div className={selectedProvider === 'minimax' ? 'block space-y-4' : 'hidden'}>
                         <p className="text-sm text-slate-400">
-                            Enter your MiniMax API Key (from <span className="text-orange-400">platform.minimaxi.com</span>). The Group ID is required for narration (TTS).
+                            Insira sua chave de API do MiniMax (de <span className="text-orange-400">platform.minimaxi.com</span>). O Group ID é necessário para narração (TTS).
                         </p>
 
                         <div className="flex flex-col md:flex-row gap-3">
@@ -334,7 +334,7 @@ export const ConnectionStatus: React.FC = () => {
                                     type={showKey ? "text" : "password"}
                                     value={minimaxKey}
                                     onChange={(e) => setMinimaxKey(e.target.value)}
-                                    placeholder="Paste MiniMax API Key"
+                                    placeholder="Cole a chave MiniMax"
                                     className="w-full bg-slate-900 border border-slate-600 rounded-lg py-3 pl-4 pr-12 text-sm text-white focus:ring-2 focus:ring-orange-500 outline-none"
                                 />
                                 <button onClick={() => setShowKey(!showKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
@@ -348,24 +348,40 @@ export const ConnectionStatus: React.FC = () => {
                                 type="text"
                                 value={minimaxGroup}
                                 onChange={(e) => setMinimaxGroup(e.target.value)}
-                                placeholder="Group ID (required for TTS)"
+                                placeholder="Group ID (obrigatório para TTS)"
                                 className="flex-1 bg-slate-900 border border-slate-600 rounded-lg py-3 pl-4 pr-4 text-sm text-white focus:ring-2 focus:ring-orange-500 outline-none"
                             />
                         </div>
 
                         <div className="flex flex-col md:flex-row gap-3">
-                            <input
-                                type="text"
+                            <select
                                 value={minimaxVoice}
                                 onChange={(e) => setMinimaxVoice(e.target.value)}
-                                placeholder="Voice ID (optional, e.g. Portuguese_ConfidentWoman)"
                                 className="flex-1 bg-slate-900 border border-slate-600 rounded-lg py-3 pl-4 pr-4 text-sm text-white focus:ring-2 focus:ring-orange-500 outline-none"
-                            />
+                            >
+                                <option value="">Selecione uma voz (Opcional)</option>
+                                <optgroup label="Português">
+                                    <option value="Portuguese_CaptivatingStoryteller">Portuguese_CaptivatingStoryteller</option>
+                                    <option value="Portuguese_ConfidentWoman">Portuguese_ConfidentWoman</option>
+                                    <option value="Portuguese_LovelyLady">Portuguese_LovelyLady</option>
+                                    <option value="Portuguese_RationalMan">Portuguese_RationalMan</option>
+                                </optgroup>
+                                <optgroup label="Inglês">
+                                    <option value="English_magnetic_voiced_man">English_magnetic_voiced_man</option>
+                                    <option value="English_CalmWoman">English_CalmWoman</option>
+                                    <option value="English_Graceful_Lady">English_Graceful_Lady</option>
+                                </optgroup>
+                                <optgroup label="Espanhol">
+                                    <option value="Spanish_ConfidentWoman">Spanish_ConfidentWoman</option>
+                                    <option value="Spanish_RationalMan">Spanish_RationalMan</option>
+                                    <option value="Spanish_SophisticatedLady">Spanish_SophisticatedLady</option>
+                                </optgroup>
+                            </select>
                         </div>
 
                         <div className="flex flex-col md:flex-row gap-3">
                             <button onClick={() => handleSaveKey('minimax')} className="flex items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-medium rounded-lg transition-colors">
-                                <Save size={18} /> Save
+                                <Save size={18} /> Salvar
                             </button>
                             {savedMinimax && (
                                 <button onClick={() => handleRemoveKey('minimax')} className="px-4 py-3 bg-red-900/20 hover:bg-red-900/40 border border-red-800 text-red-400 rounded-lg">
@@ -377,7 +393,7 @@ export const ConnectionStatus: React.FC = () => {
 
                     <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center gap-2 text-[10px] text-slate-500">
                         <ShieldCheck size={12} />
-                        <span>Keys are stored locally in your browser.</span>
+                        <span>As chaves são armazenadas localmente no seu navegador.</span>
                     </div>
                 </div>
 
@@ -392,7 +408,7 @@ export const ConnectionStatus: React.FC = () => {
                                     selectedProvider === 'openai' ? 'text-green-400' :
                                     'text-orange-400'
                                 } size={20} />
-                                Active Connection
+                                Conexão Ativa
                             </h3>
                             {status === 'checking' && <Loader2 className="animate-spin text-slate-400" />}
                             {status === 'connected' && <div className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">Online</div>}
@@ -401,12 +417,12 @@ export const ConnectionStatus: React.FC = () => {
 
                         <div className="space-y-4 flex-1">
                             <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-700">
-                                <span className="text-slate-400 text-sm">Target API</span>
+                                <span className="text-slate-400 text-sm">API Alvo</span>
                                 <span className="text-white text-sm font-bold uppercase">{selectedProvider}</span>
                             </div>
                             {latency !== null && (
                                 <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-700">
-                                    <span className="text-slate-400 text-sm">Latency</span>
+                                    <span className="text-slate-400 text-sm">Latência</span>
                                     <span className={`text-sm font-mono ${latency < 500 ? 'text-green-400' : 'text-yellow-400'}`}>{latency}ms</span>
                                 </div>
                             )}
@@ -420,7 +436,7 @@ export const ConnectionStatus: React.FC = () => {
                                 disabled={status === 'checking'}
                                 className="w-full mt-auto py-3 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded transition-colors"
                             >
-                                {status === 'checking' ? 'Connecting...' : 'Test Connection'}
+                                {status === 'checking' ? 'Conectando...' : 'Testar Conexão'}
                             </button>
                         </div>
                     </div>
@@ -429,29 +445,29 @@ export const ConnectionStatus: React.FC = () => {
                     <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl flex flex-col">
                         <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-6">
                             <Cpu className="text-blue-400" size={20} />
-                            Current Pipeline
+                            Pipeline Atual
                         </h3>
 
                         <div className="space-y-4">
                             {selectedProvider === 'gemini' && (
                                 <>
-                                    <ServiceItem name="Script Gen" model="Gemini 1.5 Flash" type="LLM" active={true} color="purple" />
-                                    <ServiceItem name="Image Gen" model="Gemini 2.5 Flash / Pro" type="Vision" active={true} color="purple" />
-                                    <ServiceItem name="Narration" model="Gemini TTS" type="Audio" active={true} color="purple" />
+                                    <ServiceItem name="Geração Script" model="Gemini 1.5 Flash" type="LLM" active={true} color="purple" />
+                                    <ServiceItem name="Geração Imagem" model="Gemini 2.5 Flash / Pro" type="Visão" active={true} color="purple" />
+                                    <ServiceItem name="Narração" model="Gemini TTS" type="Áudio" active={true} color="purple" />
                                 </>
                             )}
                             {selectedProvider === 'openai' && (
                                 <>
-                                    <ServiceItem name="Script Gen" model="GPT-4o" type="LLM" active={true} color="green" />
-                                    <ServiceItem name="Image Gen" model="DALL-E 3 (Vertical)" type="Vision" active={true} color="green" />
-                                    <ServiceItem name="Narration" model="TTS-1 (Onyx)" type="Audio" active={true} color="green" />
+                                    <ServiceItem name="Geração Script" model="GPT-4o" type="LLM" active={true} color="green" />
+                                    <ServiceItem name="Geração Imagem" model="DALL-E 3 (Vertical)" type="Visão" active={true} color="green" />
+                                    <ServiceItem name="Narração" model="TTS-1 (Onyx)" type="Áudio" active={true} color="green" />
                                 </>
                             )}
                             {selectedProvider === 'minimax' && (
                                 <>
-                                    <ServiceItem name="Script Gen" model="MiniMax-Text-01" type="LLM" active={true} color="orange" />
-                                    <ServiceItem name="Image Gen" model="image-01 (Vertical)" type="Vision" active={true} color="orange" />
-                                    <ServiceItem name="Narration" model={`speech-02-hd (${minimaxVoice || 'auto'})`} type="Audio" active={!!minimaxGroup} color="orange" />
+                                    <ServiceItem name="Geração Script" model="MiniMax-Text-01" type="LLM" active={true} color="orange" />
+                                    <ServiceItem name="Geração Imagem" model="image-01 (Vertical)" type="Visão" active={true} color="orange" />
+                                    <ServiceItem name="Narração" model={`speech-02-hd (${minimaxVoice || 'auto'})`} type="Áudio" active={!!minimaxGroup} color="orange" />
                                 </>
                             )}
                         </div>

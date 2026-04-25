@@ -148,7 +148,7 @@ export const GeneratorCarousel: React.FC = () => {
       const results = await generateCarouselImagesFromSlides(
         carouselSlides.map(s => ({ imagePrompt: s.imagePrompt, caption: s.caption })),
         platform,
-        (current, total) => setImageProgress(`Generating image ${current}/${total}...`)
+        (current, total) => setImageProgress(`Gerando imagem ${current}/${total}...`)
       );
       setCarouselImageUrls(results);
       // Auto-save to My Images
@@ -214,7 +214,7 @@ export const GeneratorCarousel: React.FC = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
               <ImageIcon className="text-pink-400" size={22} />
-              Image / Carrossel
+              Imagem / Carrossel
             </h2>
             <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold border ${providerBadgeClass}`}>
               <ProviderIcon size={12} />
@@ -224,22 +224,22 @@ export const GeneratorCarousel: React.FC = () => {
 
           {/* Mode Selector */}
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Content Type</label>
+            <label className="block text-sm font-medium text-slate-400 mb-2">Tipo de Conteúdo</label>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => { setMode('image'); handleReset(); }}
                 className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all border ${mode === 'image' ? 'bg-pink-600/15 border-pink-600/40 text-pink-300 shadow-lg shadow-pink-900/10' : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-300'}`}>
-                <ImageIcon size={16} /> Single Image
+                <ImageIcon size={16} /> Imagem Única
               </button>
               <button onClick={() => { setMode('carousel'); handleReset(); }}
                 className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all border ${mode === 'carousel' ? 'bg-orange-600/15 border-orange-600/40 text-orange-300 shadow-lg shadow-orange-900/10' : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-300'}`}>
-                <LayoutGrid size={16} /> Carousel
+                <LayoutGrid size={16} /> Carrossel
               </button>
             </div>
           </div>
 
           {/* Platform Selector */}
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Platform</label>
+            <label className="block text-sm font-medium text-slate-400 mb-2">Plataforma</label>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => setPlatform('instagram')}
                 className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all border ${platform === 'instagram' ? 'bg-gradient-to-r from-purple-600/20 to-pink-600/20 border-pink-500/40 text-pink-300' : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'}`}>
@@ -256,7 +256,7 @@ export const GeneratorCarousel: React.FC = () => {
           {/* Slide Count (carousel only) */}
           {mode === 'carousel' && (
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">Number of Slides</label>
+              <label className="block text-sm font-medium text-slate-400 mb-2">Número de Slides</label>
               <div className="flex items-center gap-3">
                 <button onClick={() => setSlideCount(Math.max(2, slideCount - 1))} className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white flex items-center justify-center transition-colors"><Minus size={16} /></button>
                 <div className="flex-1 text-center"><span className="text-3xl font-bold text-white">{slideCount}</span><span className="text-xs text-slate-500 ml-2">slides</span></div>
@@ -269,7 +269,7 @@ export const GeneratorCarousel: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label htmlFor="carousel-topic" className="block text-sm font-medium text-slate-400">
-                {mode === 'image' ? 'Image Topic' : 'Carousel Topic'}
+                {mode === 'image' ? 'Tema da Imagem' : 'Tema do Carrossel'}
               </label>
               <button
                 onClick={handleSuggest}
@@ -277,14 +277,14 @@ export const GeneratorCarousel: React.FC = () => {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-amber-600/15 border border-amber-500/30 text-amber-300 hover:bg-amber-600/25 hover:border-amber-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {suggesting ? (
-                  <><div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" /> Suggesting...</>
+                  <><div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" /> Sugerindo...</>
                 ) : (
-                  <><Lightbulb size={13} /> Suggest Publication</>
+                  <><Lightbulb size={13} /> Sugerir Publicação</>
                 )}
               </button>
             </div>
             <textarea id="carousel-topic" value={topic} onChange={(e) => setTopic(e.target.value)}
-              placeholder={mode === 'image' ? 'e.g., Benefits of meditation...' : 'e.g., 7 tips for productivity...'}
+              placeholder={mode === 'image' ? 'Ex: Benefícios da meditação...' : 'Ex: 7 dicas de produtividade...'}
               className="w-full bg-slate-900 border border-slate-600 rounded-lg p-4 text-base focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all placeholder-slate-600 resize-none h-24"
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); mode === 'image' ? handleGenerateSingle() : handleGenerateCarousel(); } }}
             />
@@ -295,13 +295,13 @@ export const GeneratorCarousel: React.FC = () => {
             {!loading ? (
               <button onClick={mode === 'image' ? handleGenerateSingle : handleGenerateCarousel} disabled={!topic.trim()}
                 className={`w-full py-4 rounded-lg font-bold text-lg flex items-center justify-center space-x-2 transition-all ${!topic.trim() ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : mode === 'image' ? 'bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white shadow-lg hover:shadow-pink-500/25' : 'bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white shadow-lg hover:shadow-orange-500/25'}`}>
-                <Wand2 size={20} /><span>{mode === 'image' ? 'Generate Caption' : 'Generate Captions'}</span>
+                <Wand2 size={20} /><span>{mode === 'image' ? 'Gerar Legenda' : 'Gerar Legendas'}</span>
               </button>
             ) : (
               <div className="bg-slate-900 rounded-lg p-4 border border-slate-700 space-y-3">
                 <div className="flex items-center justify-center gap-3 text-sm text-white font-medium">
                   <div className="w-5 h-5 border-2 border-pink-500 border-t-transparent rounded-full animate-spin" />
-                  <span>{getProviderLabel(activeProvider)} is thinking...</span>
+                  <span>{getProviderLabel(activeProvider)} está pensando...</span>
                 </div>
                 <div className="w-full h-1.5 bg-black rounded-full overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-pink-500 to-orange-500 rounded-full animate-pulse" style={{ width: '60%' }} />
@@ -325,15 +325,15 @@ export const GeneratorCarousel: React.FC = () => {
                 >
                   <ImageIcon size={18} />
                   <span>{mode === 'image'
-                    ? (singleImageUrl ? 'Regenerate Image' : 'Generate Image')
-                    : (carouselImageUrls.length > 0 ? 'Regenerate Images' : `Generate ${carouselSlides.length} Images`)}
+                    ? (singleImageUrl ? 'Regerar Imagem' : 'Gerar Imagem')
+                    : (carouselImageUrls.length > 0 ? 'Regerar Imagens' : `Gerar ${carouselSlides.length} Imagens`)}
                   </span>
                 </button>
               ) : (
                 <div className="bg-slate-900 rounded-lg p-4 border border-slate-700 space-y-2">
                   <div className="flex items-center justify-center gap-3 text-sm text-white font-medium">
                     <Loader2 size={18} className="animate-spin text-emerald-400" />
-                    <span>{imageProgress || 'Generating...'}</span>
+                    <span>{imageProgress || 'Gerando...'}</span>
                   </div>
                   <div className="w-full h-1.5 bg-black rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full animate-pulse" style={{ width: '70%' }} />
@@ -356,24 +356,24 @@ export const GeneratorCarousel: React.FC = () => {
             {singleImageUrl && (
               <div className="bg-slate-800/80 backdrop-blur border border-emerald-700/30 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider"><ImageIcon size={14} />Generated Image</div>
+                  <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider"><ImageIcon size={14} />Imagem Gerada</div>
                   <div className="flex items-center gap-2">
                     {singleImageWithTextUrl && (
                       <button onClick={() => setShowWithText(!showWithText)}
                         className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-slate-700 border border-slate-600 text-slate-300 hover:bg-slate-600 transition-colors">
                         {showWithText ? <ToggleRight size={14} className="text-emerald-400" /> : <ToggleLeft size={14} />}
-                        {showWithText ? 'Caption' : 'Clean'}
+                        {showWithText ? 'Legenda' : 'Limpa'}
                       </button>
                     )}
                     <a href={showWithText && liveOverlayUrl ? liveOverlayUrl : singleImageUrl} download="post_image.png" target="_blank" rel="noreferrer"
                       className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-600/30 transition-colors">
-                      <Download size={12} /> Download
+                      <Download size={12} /> Baixar
                     </a>
                   </div>
                 </div>
                 {showWithText && singleImageWithTextUrl && (
                   <div className="flex items-center gap-3 px-1">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase whitespace-nowrap">Font</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase whitespace-nowrap">Fonte</span>
                     <input type="range" min="0.4" max="2.0" step="0.1" value={fontScale}
                       onChange={(e) => setFontScale(parseFloat(e.target.value))}
                       className="flex-1 h-1.5 bg-slate-700 rounded-full appearance-none cursor-pointer accent-emerald-500" />
@@ -384,7 +384,7 @@ export const GeneratorCarousel: React.FC = () => {
               </div>
             )}
             <div className="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center gap-2 text-pink-400 text-xs font-bold uppercase tracking-wider"><Sparkles size={14} />AI-Generated Caption</div>
+              <div className="flex items-center gap-2 text-pink-400 text-xs font-bold uppercase tracking-wider"><Sparkles size={14} />Legenda Gerada por IA</div>
               <textarea value={singleCaption} onChange={(e) => setSingleCaption(e.target.value)} className="w-full bg-slate-900/60 border border-slate-600 rounded-xl p-4 text-sm text-slate-200 leading-relaxed resize-none focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all min-h-[120px]" />
             </div>
             <div className="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-2xl p-5">
@@ -392,7 +392,7 @@ export const GeneratorCarousel: React.FC = () => {
               <textarea value={singleHashtags} onChange={(e) => setSingleHashtags(e.target.value)} className="w-full bg-slate-900/60 border border-slate-600 rounded-xl p-3 text-sm text-cyan-300/80 resize-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent outline-none transition-all min-h-[60px]" />
             </div>
             <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Image Prompt (AI Reference)</div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Prompt da Imagem (Referência IA)</div>
               <p className="text-xs text-slate-400 leading-relaxed italic">{singleImagePrompt}</p>
             </div>
           </div>
@@ -406,24 +406,24 @@ export const GeneratorCarousel: React.FC = () => {
               <div className="bg-slate-800/80 backdrop-blur border border-violet-700/30 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2 text-violet-400 text-xs font-bold uppercase tracking-wider">
-                    <ImageIcon size={14} />Slide {carouselPreviewIndex + 1} of {carouselImageUrls.length}
+                    <ImageIcon size={14} />Slide {carouselPreviewIndex + 1} de {carouselImageUrls.length}
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setShowWithText(!showWithText)}
                       className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-slate-700 border border-slate-600 text-slate-300 hover:bg-slate-600 transition-colors">
                       {showWithText ? <ToggleRight size={14} className="text-violet-400" /> : <ToggleLeft size={14} />}
-                      {showWithText ? 'Caption' : 'Clean'}
+                      {showWithText ? 'Legenda' : 'Limpa'}
                     </button>
                     <a href={showWithText && liveCarouselOverlays[carouselPreviewIndex] ? liveCarouselOverlays[carouselPreviewIndex] : carouselImageUrls[carouselPreviewIndex].imageUrl}
                       download={`carousel_slide_${carouselPreviewIndex + 1}.png`} target="_blank" rel="noreferrer"
                       className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-violet-600/20 border border-violet-500/30 text-violet-300 hover:bg-violet-600/30 transition-colors">
-                      <Download size={12} /> Download
+                      <Download size={12} /> Baixar
                     </a>
                   </div>
                 </div>
                 {showWithText && (
                   <div className="flex items-center gap-3 px-1">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase whitespace-nowrap">Font</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase whitespace-nowrap">Fonte</span>
                     <input type="range" min="0.4" max="2.0" step="0.1" value={fontScale}
                       onChange={(e) => setFontScale(parseFloat(e.target.value))}
                       className="flex-1 h-1.5 bg-slate-700 rounded-full appearance-none cursor-pointer accent-violet-500" />
@@ -458,7 +458,7 @@ export const GeneratorCarousel: React.FC = () => {
               </div>
             )}
             <div className="bg-slate-800/80 backdrop-blur border border-orange-700/30 rounded-2xl p-5">
-              <div className="flex items-center gap-2 text-orange-400 text-xs font-bold uppercase tracking-wider mb-2"><Sparkles size={14} />Carousel Title</div>
+              <div className="flex items-center gap-2 text-orange-400 text-xs font-bold uppercase tracking-wider mb-2"><Sparkles size={14} />Título do Carrossel</div>
               <input value={carouselTitle} onChange={(e) => setCarouselTitle(e.target.value)} className="w-full bg-slate-900/60 border border-slate-600 rounded-xl p-3 text-lg font-bold text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all" />
             </div>
             <div className="space-y-3">
@@ -478,8 +478,8 @@ export const GeneratorCarousel: React.FC = () => {
                     <div className="space-y-2">
                       <textarea value={editBuffer} onChange={(e) => setEditBuffer(e.target.value)} className="w-full bg-slate-900 border border-orange-500/40 rounded-lg p-3 text-sm text-slate-200 resize-none focus:ring-2 focus:ring-orange-500 outline-none min-h-[80px]" autoFocus />
                       <div className="flex gap-2 justify-end">
-                        <button onClick={cancelEditSlide} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors flex items-center gap-1"><XCircle size={12} /> Cancel</button>
-                        <button onClick={confirmEditSlide} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-orange-600 text-white hover:bg-orange-500 transition-colors flex items-center gap-1"><Check size={12} /> Save</button>
+                        <button onClick={cancelEditSlide} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors flex items-center gap-1"><XCircle size={12} /> Cancelar</button>
+                        <button onClick={confirmEditSlide} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-orange-600 text-white hover:bg-orange-500 transition-colors flex items-center gap-1"><Check size={12} /> Salvar</button>
                       </div>
                     </div>
                   ) : (
@@ -507,11 +507,11 @@ export const GeneratorCarousel: React.FC = () => {
               {mode === 'image' ? <ImageIcon size={50} className="opacity-40 text-pink-400" /> : <LayoutGrid size={50} className="opacity-40 text-orange-400" />}
             </div>
             <div>
-              <h2 className="text-3xl font-bold text-slate-400 mb-2">{mode === 'image' ? 'Create an Image Post' : 'Create a Carousel'}</h2>
+              <h2 className="text-3xl font-bold text-slate-400 mb-2">{mode === 'image' ? 'Criar um Post de Imagem' : 'Criar um Carrossel'}</h2>
               <p className="max-w-md mx-auto text-slate-500">
                 {mode === 'image'
-                  ? `Enter a topic to generate an AI-powered caption with ${getProviderLabel(activeProvider)}.`
-                  : `Enter a topic to generate a ${slideCount}-slide carousel with ${getProviderLabel(activeProvider)}.`}
+                  ? `Digite um tema para gerar uma legenda com IA usando ${getProviderLabel(activeProvider)}.`
+                  : `Digite um tema para gerar um carrossel de ${slideCount} slides com ${getProviderLabel(activeProvider)}.`}
               </p>
             </div>
           </div>
@@ -524,7 +524,7 @@ export const GeneratorCarousel: React.FC = () => {
               <div className={`w-16 h-16 rounded-full border-4 border-t-transparent animate-spin ${mode === 'image' ? 'border-pink-500' : 'border-orange-500'}`} />
             </div>
             <p className="text-slate-400 font-medium animate-pulse">
-              {getProviderLabel(activeProvider)} generating {mode === 'image' ? 'caption' : `${slideCount} slide captions`}...
+              {getProviderLabel(activeProvider)} gerando {mode === 'image' ? 'legenda' : `legendas de ${slideCount} slides`}...
             </p>
           </div>
         )}

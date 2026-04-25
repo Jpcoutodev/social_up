@@ -44,7 +44,7 @@ export const MyVideos: React.FC = () => {
 
     const handleDelete = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!confirm('Are you sure you want to delete this video?')) return;
+        if (!confirm('Tem certeza que deseja excluir este vídeo?')) return;
 
         try {
             const { error } = await supabase.from('social_videos').delete().eq('id', id);
@@ -53,7 +53,7 @@ export const MyVideos: React.FC = () => {
             if (selectedVideo?.id === id) setSelectedVideo(null);
         } catch (error) {
             console.error('Error deleting video:', error);
-            alert('Failed to delete video');
+            alert('Falha ao excluir vídeo');
         }
     };
 
@@ -93,17 +93,17 @@ echo "✅ Render Complete! Check the 'out' folder."
         // Get config
         const savedN8n = localStorage.getItem('n8n_config');
         if (!savedN8n) {
-            alert('⚠️ n8n not configured! Go to "Integrations" tab first.');
+            alert('⚠️ n8n não configurado! Vá para a aba "Integrações" primeiro.');
             return;
         }
         const { webhookUrl, bundleUrl } = JSON.parse(savedN8n);
 
         if (!webhookUrl || !bundleUrl) {
-            alert('⚠️ Missing n8n URL or Bundle URL! Check "Integrations" tab.');
+            alert('⚠️ URL do n8n ou Bundle URL faltando! Verifique a aba "Integrações".');
             return;
         }
 
-        if (!confirm(`🚀 Send "${video.title}" to n8n for rendering & posting?\n\nThis will trigger your n8n workflow.`)) return;
+        if (!confirm(`🚀 Enviar "${video.title}" para o n8n para renderização e publicação?\n\nIsso irá acionar seu workflow n8n.`)) return;
 
         try {
             setLoading(true);
@@ -121,12 +121,12 @@ echo "✅ Render Complete! Check the 'out' folder."
             });
 
             if (res.ok) {
-                alert('✅ Sent to n8n! Processing started.');
+                alert('✅ Enviado para o n8n! Processamento iniciado.');
             } else {
                 throw new Error('n8n responded with error');
             }
         } catch (err: any) {
-            alert('❌ Failed to trigger n8n: ' + err.message);
+            alert('❌ Falha ao acionar n8n: ' + err.message);
         } finally {
             setLoading(false);
         }
@@ -135,11 +135,11 @@ echo "✅ Render Complete! Check the 'out' folder."
     const handleRenderMP4 = async (video: SavedVideo, e: React.MouseEvent) => {
         e.stopPropagation();
 
-        if (!confirm(`🎬 Render "${video.title}" to MP4?\n\nFFmpeg rendering will take ~30-60 seconds.`)) return;
+        if (!confirm(`🎬 Renderizar "${video.title}" em MP4?\n\nA renderização FFmpeg levará ~30-60 segundos.`)) return;
 
         setRendering(true);
         setRenderingId(video.id);
-        setProgressStatus('Sending to render server...');
+        setProgressStatus('Enviando para o servidor de renderização...');
 
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -148,7 +148,7 @@ echo "✅ Render Complete! Check the 'out' folder."
             // Webhook n8n FFmpeg (Easypanel)
             const webhookUrl = 'https://n8n-n8n.jx5kj7.easypanel.host/webhook/512c2ea0-6754-4b6b-973b-17b47dc02820';
 
-            setProgressStatus('Rendering video... This may take several minutes.');
+            setProgressStatus('Renderizando vídeo... Isso pode levar alguns minutos.');
 
             const response = await fetch(webhookUrl, {
                 method: 'POST',
@@ -171,7 +171,7 @@ echo "✅ Render Complete! Check the 'out' folder."
             const result = await response.json();
 
             if (result.success && result.video_url) {
-                setProgressStatus('Render complete!');
+                setProgressStatus('Renderização concluída!');
 
                 // Atualizar video_url no banco
                 const { error: updateError } = await supabase
@@ -193,14 +193,14 @@ echo "✅ Render Complete! Check the 'out' folder."
                 link.target = '_blank';
                 link.click();
 
-                alert(`✅ Video rendered successfully!\n\nURL: ${result.video_url}\n\nThe video has been saved to your library.`);
+                alert(`✅ Vídeo renderizado com sucesso!\n\nURL: ${result.video_url}\n\nO vídeo foi salvo na sua biblioteca.`);
             } else {
                 throw new Error('Invalid response from render server');
             }
         } catch (err: any) {
             console.error('Render error:', err);
             setProgressStatus('');
-            alert(`❌ Failed to render video: ${err.message}\n\nPlease check the n8n workflow and server status.`);
+            alert(`❌ Falha ao renderizar vídeo: ${err.message}\n\nVerifique o workflow n8n e o status do servidor.`);
         } finally {
             setRendering(false);
             setRenderingId(null);
@@ -215,7 +215,7 @@ echo "✅ Render Complete! Check the 'out' folder."
                 <div className="p-4 border-b border-slate-800">
                     <h2 className="text-lg font-bold text-white flex items-center gap-2">
                         <FileVideo className="text-purple-400" size={20} />
-                        My Library
+                        Minha Biblioteca
                     </h2>
                 </div>
 
@@ -226,7 +226,7 @@ echo "✅ Render Complete! Check the 'out' folder."
                         </div>
                     ) : videos.length === 0 ? (
                         <div className="text-center p-8 text-slate-500">
-                            <p className="text-sm">No videos saved yet.</p>
+                            <p className="text-sm">Nenhum vídeo salvo ainda.</p>
                         </div>
                     ) : (
                         videos.map(video => (
@@ -243,7 +243,7 @@ echo "✅ Render Complete! Check the 'out' folder."
                                 <div className="flex justify-between items-start mb-1">
                                     <div className="flex items-center gap-1 flex-1 min-w-0">
                                         {video.video_url && (
-                                            <span className="text-green-400 flex-shrink-0" title="MP4 ready">
+                                            <span className="text-green-400 flex-shrink-0" title="MP4 pronto">
                                                 <FileVideo size={12} />
                                             </span>
                                         )}
@@ -287,7 +287,7 @@ echo "✅ Render Complete! Check the 'out' folder."
                                     className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-green-900/40 animate-pulse"
                                 >
                                     <Download size={18} />
-                                    <span>Download MP4</span>
+                                    <span>Baixar MP4</span>
                                 </a>
                             ) : (
                                 <button
@@ -298,12 +298,12 @@ echo "✅ Render Complete! Check the 'out' folder."
                                     {rendering && renderingId === selectedVideo.id ? (
                                         <>
                                             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                                            <span>Rendering...</span>
+                                            <span>Renderizando...</span>
                                         </>
                                     ) : (
                                         <>
                                             <Download size={16} />
-                                            <span>Render MP4</span>
+                                            <span>Renderizar MP4</span>
                                         </>
                                     )}
                                 </button>
@@ -338,7 +338,7 @@ echo "✅ Render Complete! Check the 'out' folder."
                         <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-4">
                             <Play size={40} className="ml-2 opacity-50" />
                         </div>
-                        <p>Select a video to preview</p>
+                        <p>Selecione um vídeo para visualizar</p>
                     </div>
                 )}
             </div>

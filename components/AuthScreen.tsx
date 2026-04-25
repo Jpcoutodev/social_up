@@ -47,10 +47,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
             <div className="w-full max-w-md bg-slate-800/50 p-8 rounded-2xl border border-slate-700 backdrop-blur-sm shadow-xl">
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-white mb-2">
-                        {isLogin ? 'Welcome Back' : 'Create Account'}
+                        {isLogin ? 'Bem-vindo de volta' : 'Criar Conta'}
                     </h1>
                     <p className="text-slate-400">
-                        {isLogin ? 'Sign in to access your dashboard' : 'Join ShortsFactory today'}
+                        {isLogin ? 'Entre para acessar seu painel' : 'Junte-se ao Social UP hoje'}
                     </p>
                 </div>
 
@@ -77,7 +77,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">Password</label>
+                        <label className="text-sm font-medium text-slate-300">Senha</label>
                         <div className="relative">
                             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                             <input
@@ -101,7 +101,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                             <Loader2 className="animate-spin" size={20} />
                         ) : (
                             <>
-                                {isLogin ? 'Sign In' : 'Sign Up'}
+                                {isLogin ? 'Entrar' : 'Cadastrar'}
                                 <ArrowRight size={18} />
                             </>
                         )}
@@ -113,7 +113,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                         onClick={() => setIsLogin(!isLogin)}
                         className="text-slate-400 hover:text-white text-sm transition-colors"
                     >
-                        {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+                        {isLogin ? 'Não tem uma conta? Cadastre-se' : 'Já tem uma conta? Entre'}
                     </button>
                 </div>
             </div>

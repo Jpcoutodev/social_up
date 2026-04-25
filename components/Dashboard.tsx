@@ -52,7 +52,7 @@ export const Dashboard: React.FC = () => {
 
     setLoading(true);
     setProgress(0);
-    setProgressStatus(`Initializing ${currentProvider === 'openai' ? 'OpenAI' : currentProvider === 'minimax' ? 'MiniMax' : 'Gemini'}...`);
+    setProgressStatus(`Inicializando ${currentProvider === 'openai' ? 'OpenAI' : currentProvider === 'minimax' ? 'MiniMax' : 'Gemini'}...`);
     setError(null);
     setScript(null);
     setCopied(false);
@@ -70,9 +70,9 @@ export const Dashboard: React.FC = () => {
       setScript(generatedScript);
     } catch (err: any) {
       if (err.message === 'Cancelled by user') {
-        setProgressStatus('Generation Cancelled');
+        setProgressStatus('Geração Cancelada');
       } else {
-        setError(err.message || 'Failed to generate script');
+        setError(err.message || 'Falha ao gerar o script');
       }
     } finally {
       setLoading(false);
@@ -84,7 +84,7 @@ export const Dashboard: React.FC = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       setLoading(false);
-      setProgressStatus('Cancelled');
+      setProgressStatus('Cancelado');
     }
   };
 
@@ -144,9 +144,9 @@ echo "✅ Render Complete! Check the 'out' folder."
       });
 
       if (error) throw error;
-      alert('Video saved to your library!');
+      alert('Vídeo salvo na sua biblioteca!');
     } catch (err: any) {
-      alert('Failed to save video: ' + err.message);
+      alert('Falha ao salvar vídeo: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -156,7 +156,7 @@ echo "✅ Render Complete! Check the 'out' folder."
     if (!script || !topic) return;
 
     setRendering(true);
-    setProgressStatus('Sending to render server...');
+    setProgressStatus('Enviando para o servidor de renderização...');
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -165,7 +165,7 @@ echo "✅ Render Complete! Check the 'out' folder."
       // Use n8n webhook URL from environment or fallback to local server
       const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'http://localhost:3001/render-video';
 
-      setProgressStatus('Initiating video render...');
+      setProgressStatus('Iniciando renderização do vídeo...');
 
       // Send to n8n webhook or local server
       const response = await fetch(webhookUrl, {
@@ -185,14 +185,14 @@ echo "✅ Render Complete! Check the 'out' folder."
         throw new Error(errorData.message || 'Failed to start render');
       }
 
-      setProgressStatus('Video is rendering...');
+      setProgressStatus('Vídeo está sendo renderizado...');
 
       const result = await response.json();
 
       // Check if response includes video_url (n8n workflow) or blob (local server)
       if (result.success && result.video_url) {
         // n8n workflow response with Supabase Storage URL
-        setProgressStatus('Render complete!');
+        setProgressStatus('Renderização concluída!');
 
         // Open video in new tab and trigger download
         const link = document.createElement('a');
@@ -201,10 +201,10 @@ echo "✅ Render Complete! Check the 'out' folder."
         link.target = '_blank';
         link.click();
 
-        alert(`Video rendered successfully!\n\nVideo URL: ${result.video_url}\n\nThe video has been saved to your library.`);
+        alert(`Vídeo renderizado com sucesso!\n\nURL do Vídeo: ${result.video_url}\n\nO vídeo foi salvo na sua biblioteca.`);
       } else if (response.headers.get('content-type')?.includes('video/mp4')) {
         // Local server response with blob (fallback)
-        setProgressStatus('Downloading video...');
+        setProgressStatus('Baixando vídeo...');
 
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -216,14 +216,14 @@ echo "✅ Render Complete! Check the 'out' folder."
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
 
-        alert('Video downloaded successfully!');
+        alert('Vídeo baixado com sucesso!');
       } else {
         throw new Error('Invalid response from render server');
       }
 
     } catch (err: any) {
       console.error('Render error:', err);
-      setProgressStatus('Render failed');
+      setProgressStatus('Falha na renderização');
 
       const errorMessage = err.message || 'Unknown error';
       const isLocalServer = !import.meta.env.VITE_N8N_WEBHOOK_URL;
@@ -231,8 +231,8 @@ echo "✅ Render Complete! Check the 'out' folder."
       alert(
         `Failed to render video: ${errorMessage}\n\n` +
         (isLocalServer
-          ? 'Make sure the render server is running (npm run server)'
-          : 'Please check the n8n workflow and server status')
+          ? 'Certifique-se de que o servidor de renderização está rodando (npm run server)'
+          : 'Verifique o workflow n8n e o status do servidor')
       );
     } finally {
       setRendering(false);
@@ -254,7 +254,7 @@ echo "✅ Render Complete! Check the 'out' folder."
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <Video className="text-purple-400" />
-                Content Gen
+                Gerador de Conteúdo
               </h2>
               {/* Active Provider Badge */}
               <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold border ${
@@ -270,7 +270,7 @@ echo "✅ Render Complete! Check the 'out' folder."
             {/* Language Selector */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-slate-400 mb-2 flex items-center gap-2">
-                <Globe size={14} /> Video Language
+                <Globe size={14} /> Idioma do Vídeo
               </label>
               <select
                 value={language}
@@ -284,13 +284,13 @@ echo "✅ Render Complete! Check the 'out' folder."
             </div>
 
             <label htmlFor="topic" className="block text-sm font-medium text-slate-400 mb-2">
-              Video Topic
+              Tema do Vídeo
             </label>
             <textarea
               id="topic"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g., 5 facts about Mars, How to bake cookies..."
+              placeholder="Ex: 5 fatos sobre Marte, Como fazer cookies..."
               className="w-full bg-slate-900 border border-slate-600 rounded-lg p-4 text-base focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all placeholder-slate-600 resize-none h-24"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -314,12 +314,12 @@ echo "✅ Render Complete! Check the 'out' folder."
                     `}
               >
                 <Wand2 size={20} />
-                <span>Generate Script</span>
+                <span>Gerar Script</span>
               </button>
             ) : (
               <div className="bg-slate-900 rounded-lg p-4 border border-slate-700 space-y-3">
                 <div className="flex items-center justify-between text-sm text-white font-medium mb-1">
-                  <span>Generating...</span>
+                  <span>Gerando...</span>
                   <span>{progress}%</span>
                 </div>
                 {/* Progress Bar */}
@@ -342,7 +342,7 @@ echo "✅ Render Complete! Check the 'out' folder."
                   className="w-full py-2 mt-2 bg-red-900/30 hover:bg-red-900/50 border border-red-800 text-red-300 text-xs font-bold uppercase tracking-wider rounded transition-colors flex items-center justify-center gap-2"
                 >
                   <XCircle size={14} />
-                  Cancel Generation
+                  Cancelar Geração
                 </button>
               </div>
             )}
@@ -350,7 +350,7 @@ echo "✅ Render Complete! Check the 'out' folder."
 
           {script && !loading && (
             <div className="space-y-3 pt-4 border-t border-slate-700">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Export Options</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Opções de Exportação</h3>
 
               <button
                 onClick={handleSave}
@@ -358,7 +358,7 @@ echo "✅ Render Complete! Check the 'out' folder."
                 className="w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center space-x-2 transition-all bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-900/20 disabled:opacity-50"
               >
                 {saving ? <Sparkles className="animate-spin" size={18} /> : <FileVideo size={18} />}
-                <span>{saving ? 'Saving...' : 'Save to Library'}</span>
+                <span>{saving ? 'Salvando...' : 'Salvar na Biblioteca'}</span>
               </button>
             </div>
           )}
@@ -372,9 +372,9 @@ echo "✅ Render Complete! Check the 'out' folder."
           {script && !loading && (
             <div className="mt-4 flex-1 overflow-hidden flex flex-col">
               <div className="flex justify-between items-center border-b border-slate-700 pb-2 mb-2">
-                <h3 className="text-lg font-semibold text-purple-300">Storyboard</h3>
+                <h3 className="text-lg font-semibold text-purple-300">Roteiro</h3>
                 <span className="text-xs bg-purple-900/50 text-purple-200 px-2 py-1 rounded border border-purple-500/30">
-                  Mood: {script.backgroundMusicMood}
+                  Humor: {script.backgroundMusicMood}
                 </span>
               </div>
 
@@ -382,7 +382,7 @@ echo "✅ Render Complete! Check the 'out' folder."
                 {script.scenes.map((scene, idx) => (
                   <div key={idx} className="bg-slate-700/50 p-3 rounded border border-slate-600/50 relative overflow-hidden group">
                     <div className="flex justify-between text-xs text-slate-400 mb-1 z-10 relative">
-                      <span className="font-mono text-purple-400">Scene {idx + 1}</span>
+                      <span className="font-mono text-purple-400">Cena {idx + 1}</span>
                       <span>{scene.durationInSeconds.toFixed(1)}s</span>
                     </div>
                     <p className="text-sm font-medium text-slate-200 relative z-10">{scene.text}</p>
@@ -423,7 +423,7 @@ echo "✅ Render Complete! Check the 'out' folder."
                 controls
               />
               <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-mono border border-white/10 pointer-events-none text-slate-300">
-                PREVIEW MODE
+                PRÉ-VISUALIZAÇÃO
               </div>
             </div>
           </div>
@@ -433,9 +433,9 @@ echo "✅ Render Complete! Check the 'out' folder."
               <FileVideo size={50} className="ml-2 opacity-40 text-purple-400" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold text-slate-400 mb-2">Ready to Create</h2>
+              <h2 className="text-3xl font-bold text-slate-400 mb-2">Pronto para Criar</h2>
               <p className="max-w-md mx-auto text-slate-500">
-                Enter a topic on the left to generate a viral vertical video powered by <strong className="text-slate-300">{activeProvider === 'openai' ? 'OpenAI DALL-E 3' : activeProvider === 'minimax' ? 'MiniMax (Text-01 + image-01)' : 'Gemini AI'}</strong>.
+                Digite um tema ao lado para gerar um vídeo vertical viral com <strong className="text-slate-300">{activeProvider === 'openai' ? 'OpenAI DALL-E 3' : activeProvider === 'minimax' ? 'MiniMax (Text-01 + image-01)' : 'Gemini AI'}</strong>.
               </p>
             </div>
           </div>

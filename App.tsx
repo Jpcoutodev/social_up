@@ -57,7 +57,7 @@ const App: React.FC = () => {
             <Activity size={24} className="text-white" />
           </div>
           <span className="ml-3 font-bold text-lg tracking-tight hidden lg:block bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-            Shorts<span className="font-extrabold text-purple-400">Factory</span>
+            Social<span className="font-extrabold text-purple-400">UP</span>
           </span>
         </div>
 
@@ -68,48 +68,48 @@ const App: React.FC = () => {
             active={activeTab === 'dashboard'}
             onClick={() => setActiveTab('dashboard')}
             icon={<LayoutDashboard size={20} />}
-            label="Generator Videos"
-            description="Create video content"
+            label="Gerador de Vídeos"
+            description="Criar conteúdo em vídeo"
           />
 
           <NavItem
             active={activeTab === 'generator-carousel'}
             onClick={() => setActiveTab('generator-carousel')}
             icon={<ImageIcon size={20} />}
-            label="Generator Image"
-            description="Images & Carousels"
+            label="Gerador de Imagens"
+            description="Imagens e Carrosséis"
           />
 
           <NavItem
             active={activeTab === 'my-videos'}
             onClick={() => setActiveTab('my-videos')}
             icon={<FileVideo size={20} />}
-            label="My Videos"
-            description="Saved Library"
+            label="Meus Vídeos"
+            description="Biblioteca salva"
           />
 
           <NavItem
             active={activeTab === 'my-images'}
             onClick={() => setActiveTab('my-images')}
             icon={<FolderOpen size={20} />}
-            label="My Images"
-            description="Images & Carousels"
+            label="Minhas Imagens"
+            description="Imagens e Carrosséis"
           />
 
           <NavItem
             active={activeTab === 'social'}
             onClick={() => setActiveTab('social')}
             icon={<Share2 size={20} />}
-            label="Integrations"
-            description="External platforms"
+            label="Integrações"
+            description="Plataformas externas"
           />
 
           <NavItem
             active={activeTab === 'connection'}
             onClick={() => setActiveTab('connection')}
             icon={<Settings2 size={20} />}
-            label="Settings"
-            description="API & System Check"
+            label="Configurações"
+            description="API e Conexões"
           />
 
         </nav>
@@ -121,7 +121,7 @@ const App: React.FC = () => {
             className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-900 rounded-lg transition-colors"
           >
             <LogOut size={18} />
-            <span className="hidden lg:block text-sm font-medium">Log Out</span>
+            <span className="hidden lg:block text-sm font-medium">Sair</span>
           </button>
         </div>
 
@@ -130,7 +130,7 @@ const App: React.FC = () => {
           <div className="bg-slate-900 rounded-lg p-3 border border-slate-800/50 mt-4">
             <div className="flex items-center gap-2 mb-1">
               <Sparkles size={14} className="text-yellow-400" />
-              <span className="text-xs font-semibold text-slate-300">Pro Plan</span>
+              <span className="text-xs font-semibold text-slate-300">Plano Pro</span>
             </div>
             <p className="text-[10px] text-slate-500 leading-tight">
               Powered by Gemini 1.5 Pro & Remotion
@@ -145,15 +145,15 @@ const App: React.FC = () => {
         {/* Header */}
         <header className="h-16 bg-slate-900/80 backdrop-blur border-b border-slate-800 flex items-center justify-center px-8 z-20">
           <h1 className="text-xl font-semibold text-white capitalize">
-            {activeTab === 'dashboard' ? 'Video Generator' :
-              activeTab === 'generator-carousel' ? 'Image / Carrossel Generator' :
-              activeTab === 'social' ? 'Social Integrations' :
-                activeTab === 'my-videos' ? 'My Library' :
-                activeTab === 'my-images' ? 'My Images' : 'System Connection'}
+            {activeTab === 'dashboard' ? 'Gerador de Vídeos' :
+              activeTab === 'generator-carousel' ? 'Gerador de Imagens / Carrosséis' :
+              activeTab === 'social' ? 'Integrações Sociais' :
+                activeTab === 'my-videos' ? 'Meus Vídeos' :
+                activeTab === 'my-images' ? 'Minhas Imagens' : 'Configurações'}
           </h1>
           <div className="absolute right-8 flex items-center gap-3">
             <div className="text-right hidden sm:block">
-              <p className="text-xs text-slate-400">Logged in as</p>
+              <p className="text-xs text-slate-400">Conectado como</p>
               <p className="text-sm font-medium text-white">{session.user.email}</p>
             </div>
             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center text-xs font-bold ring-2 ring-slate-800">
