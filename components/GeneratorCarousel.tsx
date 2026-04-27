@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { ImageIcon, LayoutGrid, Sparkles, Wand2, Plus, Minus, Pencil, Check, XCircle, Instagram, Hash, Bot, Zap, Lightbulb, Download, Loader2, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight } from 'lucide-react';
+import { ImageIcon, LayoutGrid, Sparkles, Wand2, Plus, Minus, Pencil, Check, XCircle, Instagram, Hash, Bot, Zap, Lightbulb, Download, Loader2, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical } from 'lucide-react';
 import { getProvider } from '../services/geminiService';
-import { generateSingleCaption, generateCarouselCaptions, getProviderLabel, suggestTopic, generatePostImage, generateCarouselImagesFromSlides, overlayTextOnImage } from '../services/captionService';
+import { generateSingleCaption, generateCarouselCaptions, getProviderLabel, suggestTopic, generatePostImage, generateCarouselImagesFromSlides, overlayTextOnImage, CaptionPosition } from '../services/captionService';
 import { saveImage } from '../services/imageStorageService';
 import { AIProvider } from '../types';
 
@@ -47,6 +47,7 @@ export const GeneratorCarousel: React.FC = () => {
   const [carouselPreviewIndex, setCarouselPreviewIndex] = useState(0);
   const [showWithText, setShowWithText] = useState(true);
   const [fontScale, setFontScale] = useState(1.0);
+  const [captionPosition, setCaptionPosition] = useState<CaptionPosition>('bottom');
 
   // Live overlay re-render refs
   const [liveOverlayUrl, setLiveOverlayUrl] = useState<string | null>(null);
@@ -105,7 +106,7 @@ export const GeneratorCarousel: React.FC = () => {
     setTopic(''); setSingleCaption(''); setSingleImagePrompt(''); setSingleHashtags('');
     setCaptionGenerated(false); setCarouselSlides([]); setCarouselTitle('');
     setCarouselHashtags(''); setSlidesGenerated(false); setError(null);
-    setSingleImageUrl(null); setSingleImageWithTextUrl(null); setCarouselImageUrls([]); setCarouselPreviewIndex(0); setShowWithText(true); setFontScale(1.0); setLiveOverlayUrl(null); setLiveCarouselOverlays([]);
+    setSingleImageUrl(null); setSingleImageWithTextUrl(null); setCarouselImageUrls([]); setCarouselPreviewIndex(0); setShowWithText(true); setFontScale(1.0); setLiveOverlayUrl(null); setLiveCarouselOverlays([]); setCaptionPosition('bottom');
   };
 
   const handleSuggest = useCallback(async () => {
@@ -172,14 +173,14 @@ export const GeneratorCarousel: React.FC = () => {
     } finally { setGeneratingImages(false); setImageProgress(''); }
   }, [carouselSlides, carouselTitle, carouselHashtags, topic, platform, refreshProvider]);
 
-  // Re-render overlay when fontScale changes (debounced)
+  // Re-render overlay when fontScale or captionPosition changes (debounced)
   useEffect(() => {
     if (!showWithText) return;
     clearTimeout(overlayTimer.current);
     overlayTimer.current = setTimeout(async () => {
       // Single image
       if (singleImageUrl && singleCaption) {
-        const updated = await overlayTextOnImage(singleImageUrl, singleCaption, fontScale);
+        const updated = await overlayTextOnImage(singleImageUrl, singleCaption, fontScale, captionPosition);
         setLiveOverlayUrl(updated);
       }
       // Carousel
@@ -187,14 +188,14 @@ export const GeneratorCarousel: React.FC = () => {
         const overlays: string[] = [];
         for (let i = 0; i < carouselImageUrls.length; i++) {
           const caption = carouselSlides[i]?.caption || '';
-          const o = await overlayTextOnImage(carouselImageUrls[i].imageUrl, caption, fontScale);
+          const o = await overlayTextOnImage(carouselImageUrls[i].imageUrl, caption, fontScale, captionPosition);
           overlays.push(o);
         }
         setLiveCarouselOverlays(overlays);
       }
     }, 300);
     return () => clearTimeout(overlayTimer.current);
-  }, [fontScale, singleImageUrl, singleCaption, carouselImageUrls, carouselSlides, showWithText]);
+  }, [fontScale, singleImageUrl, singleCaption, carouselImageUrls, carouselSlides, showWithText, captionPosition]);
 
   const isGenerated = mode === 'image' ? captionGenerated : slidesGenerated;
   const providerBadgeClass = activeProvider === 'openai'
@@ -372,12 +373,27 @@ export const GeneratorCarousel: React.FC = () => {
                   </div>
                 </div>
                 {showWithText && singleImageWithTextUrl && (
-                  <div className="flex items-center gap-3 px-1">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase whitespace-nowrap">Fonte</span>
-                    <input type="range" min="0.4" max="2.0" step="0.1" value={fontScale}
-                      onChange={(e) => setFontScale(parseFloat(e.target.value))}
-                      className="flex-1 h-1.5 bg-slate-700 rounded-full appearance-none cursor-pointer accent-emerald-500" />
-                    <span className="text-[10px] text-slate-400 font-mono w-8 text-right">{Math.round(fontScale * 100)}%</span>
+                  <div className="flex items-center gap-3 flex-wrap px-1">
+                    <div className="flex items-center gap-2 flex-1 min-w-[140px]">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase whitespace-nowrap">Fonte</span>
+                      <input type="range" min="0.4" max="2.0" step="0.1" value={fontScale}
+                        onChange={(e) => setFontScale(parseFloat(e.target.value))}
+                        className="flex-1 h-1.5 bg-slate-700 rounded-full appearance-none cursor-pointer accent-emerald-500" />
+                      <span className="text-[10px] text-slate-400 font-mono w-8 text-right">{Math.round(fontScale * 100)}%</span>
+                    </div>
+                    <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-0.5 border border-slate-700">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase px-1">Pos</span>
+                      {([{pos: 'top' as CaptionPosition, icon: <AlignStartVertical size={12} />, label: 'Topo'},
+                        {pos: 'middle' as CaptionPosition, icon: <AlignCenterVertical size={12} />, label: 'Meio'},
+                        {pos: 'bottom' as CaptionPosition, icon: <AlignEndVertical size={12} />, label: 'Embaixo'}] as const).map(({pos, icon, label}) => (
+                        <button key={pos} onClick={() => setCaptionPosition(pos)} title={label}
+                          className={`p-1 rounded-md transition-all ${captionPosition === pos
+                            ? 'bg-emerald-600 text-white shadow-md'
+                            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}>
+                          {icon}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <img src={showWithText && liveOverlayUrl ? liveOverlayUrl : singleImageUrl} alt="Generated post" className="w-full rounded-xl border border-slate-700 shadow-xl" />
@@ -422,12 +438,27 @@ export const GeneratorCarousel: React.FC = () => {
                   </div>
                 </div>
                 {showWithText && (
-                  <div className="flex items-center gap-3 px-1">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase whitespace-nowrap">Fonte</span>
-                    <input type="range" min="0.4" max="2.0" step="0.1" value={fontScale}
-                      onChange={(e) => setFontScale(parseFloat(e.target.value))}
-                      className="flex-1 h-1.5 bg-slate-700 rounded-full appearance-none cursor-pointer accent-violet-500" />
-                    <span className="text-[10px] text-slate-400 font-mono w-8 text-right">{Math.round(fontScale * 100)}%</span>
+                  <div className="flex items-center gap-3 flex-wrap px-1">
+                    <div className="flex items-center gap-2 flex-1 min-w-[140px]">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase whitespace-nowrap">Fonte</span>
+                      <input type="range" min="0.4" max="2.0" step="0.1" value={fontScale}
+                        onChange={(e) => setFontScale(parseFloat(e.target.value))}
+                        className="flex-1 h-1.5 bg-slate-700 rounded-full appearance-none cursor-pointer accent-violet-500" />
+                      <span className="text-[10px] text-slate-400 font-mono w-8 text-right">{Math.round(fontScale * 100)}%</span>
+                    </div>
+                    <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-0.5 border border-slate-700">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase px-1">Pos</span>
+                      {([{pos: 'top' as CaptionPosition, icon: <AlignStartVertical size={12} />, label: 'Topo'},
+                        {pos: 'middle' as CaptionPosition, icon: <AlignCenterVertical size={12} />, label: 'Meio'},
+                        {pos: 'bottom' as CaptionPosition, icon: <AlignEndVertical size={12} />, label: 'Embaixo'}] as const).map(({pos, icon, label}) => (
+                        <button key={pos} onClick={() => setCaptionPosition(pos)} title={label}
+                          className={`p-1 rounded-md transition-all ${captionPosition === pos
+                            ? 'bg-violet-600 text-white shadow-md'
+                            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}>
+                          {icon}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <div className="relative">
