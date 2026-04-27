@@ -127,7 +127,7 @@ export const GeneratorCarousel: React.FC = () => {
       setSingleImageUrl(result.imageUrl);
       setSingleImageWithTextUrl(result.imageWithTextUrl);
       // Auto-save to My Images
-      saveImage({
+      await saveImage({
         type: 'image',
         platform,
         topic,
@@ -152,7 +152,7 @@ export const GeneratorCarousel: React.FC = () => {
       );
       setCarouselImageUrls(results);
       // Auto-save to My Images
-      saveImage({
+      await saveImage({
         type: 'carousel',
         platform,
         topic,

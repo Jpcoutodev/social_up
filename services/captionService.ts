@@ -271,22 +271,56 @@ async function minimaxGenerateImage(prompt: string, aspectRatio: string): Promis
   if (imgUrl.startsWith('http://')) imgUrl = imgUrl.replace('http://', 'https://');
   console.log('[MiniMax Image] Got URL:', imgUrl.slice(0, 80));
 
-  // Download via local CORS proxy (MiniMax/Aliyun OSS blocks direct browser fetch)
+  // Strategy: try local dev proxy first, then Supabase Edge Function for production
+  // 1) Try local CORS proxy (works in dev)
   try {
     const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imgUrl)}`;
     const imgRes = await fetch(proxyUrl);
     if (!imgRes.ok) throw new Error(`Proxy returned ${imgRes.status}`);
     const blob = await imgRes.blob();
-    return await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+    return await blobToDataUrl(blob);
   } catch (proxyErr) {
-    console.warn('[MiniMax] Proxy download also failed, using URL directly:', proxyErr);
+    console.warn('[MiniMax] Local proxy unavailable, trying Supabase Edge Function...', proxyErr);
+  }
+
+  // 2) Use Supabase Edge Function as CORS proxy (works in production)
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const fnUrl = `${supabaseUrl}/functions/v1/proxy-image`;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    const proxyRes = await fetch(fnUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ url: imgUrl }),
+    });
+
+    if (!proxyRes.ok) {
+      const errText = await proxyRes.text().catch(() => '');
+      throw new Error(`Edge Function error (${proxyRes.status}): ${errText}`);
+    }
+
+    const blob = await proxyRes.blob();
+    console.log('[MiniMax] Downloaded via Supabase Edge Function, size:', blob.size);
+    return await blobToDataUrl(blob);
+  } catch (edgeErr) {
+    console.warn('[MiniMax] Edge Function failed, returning raw URL:', edgeErr);
     return imgUrl;
   }
+}
+
+/** Convert a Blob to a base64 data URL */
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 async function uploadImage(imageData: string, index: number): Promise<string> {

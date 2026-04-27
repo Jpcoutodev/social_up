@@ -19,9 +19,13 @@ export const MyImages: React.FC = () => {
   const [liveOverlayUrl, setLiveOverlayUrl] = useState<string | null>(null);
   const overlayTimer = useRef<any>(null);
 
-  const loadImages = useCallback(() => {
-    const all = getSavedImages();
-    setImages(all);
+  const loadImages = useCallback(async () => {
+    try {
+      const all = await getSavedImages();
+      setImages(all);
+    } catch (e) {
+      console.error('Failed to load images:', e);
+    }
   }, []);
 
   useEffect(() => {
@@ -54,11 +58,16 @@ export const MyImages: React.FC = () => {
     return () => clearTimeout(overlayTimer.current);
   }, [fontScale, selectedImage, carouselIndex, showWithText]);
 
-  const handleDelete = (id: string) => {
-    deleteImage(id);
-    setImages(prev => prev.filter(i => i.id !== id));
-    setDeleteConfirm(null);
-    if (selectedImage?.id === id) setSelectedImage(null);
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteImage(id);
+      setImages(prev => prev.filter(i => i.id !== id));
+      setDeleteConfirm(null);
+      if (selectedImage?.id === id) setSelectedImage(null);
+    } catch (e) {
+      console.error('Failed to delete image:', e);
+      alert('Falha ao excluir a imagem. Tente novamente.');
+    }
   };
 
   const openModal = (img: SavedImage) => {

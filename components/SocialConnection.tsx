@@ -141,46 +141,7 @@ export const SocialConnection: React.FC = () => {
         </div>
       </div>
 
-      {/* n8n Configuration Section */}
-      <div className="mb-8 bg-slate-900/50 border border-purple-500/30 p-6 rounded-xl">
-        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-          ⚡ Configuração Automação n8n
-        </h3>
-        <p className="text-slate-400 text-sm mb-4">
-          Configure seu Webhook do n8n e Hosted Bundle para permitir Renderização e Publicação em Nuvem.
-        </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">n8n Webhook URL (POST)</label>
-            <input
-              type="text"
-              value={n8nUrl}
-              onChange={(e) => setN8nUrl(e.target.value)}
-              placeholder="https://n8n.your-domain.com/webhook/..."
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-purple-500 outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Remotion Bundle URL (Vercel/Netlify)</label>
-            <input
-              type="text"
-              value={bundleUrl}
-              onChange={(e) => setBundleUrl(e.target.value)}
-              placeholder="https://my-video-project.vercel.app/bundle"
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-purple-500 outline-none"
-            />
-          </div>
-        </div>
-        <div className="mt-4 flex justify-end">
-          <button
-            onClick={saveN8nConfig}
-            className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-colors"
-          >
-            Salvar Configuração
-          </button>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-6">
         {accounts.map((account) => (
