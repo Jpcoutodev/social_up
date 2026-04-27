@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ImageIcon, LayoutGrid, Trash2, Download, Eye, X, ChevronLeft, ChevronRight, Calendar, Hash, MessageSquare, Search, ToggleLeft, ToggleRight } from 'lucide-react';
+import { ImageIcon, LayoutGrid, Trash2, Download, Eye, X, ChevronLeft, ChevronRight, Calendar, Hash, MessageSquare, Search, ToggleLeft, ToggleRight, Pencil, Check, AlignStartVertical, AlignCenterVertical, AlignEndVertical } from 'lucide-react';
 import { getSavedImages, deleteImage, SavedImage } from '../services/imageStorageService';
-import { overlayTextOnImage } from '../services/captionService';
+import { overlayTextOnImage, CaptionPosition } from '../services/captionService';
+import { supabase } from '../src/lib/supabase';
 
 type FilterType = 'all' | 'image' | 'carousel';
 
@@ -18,6 +19,11 @@ export const MyImages: React.FC = () => {
   const [fontScale, setFontScale] = useState(1.0);
   const [liveOverlayUrl, setLiveOverlayUrl] = useState<string | null>(null);
   const overlayTimer = useRef<any>(null);
+  const [captionPosition, setCaptionPosition] = useState<CaptionPosition>('bottom');
+
+  // Caption editing
+  const [editingCaption, setEditingCaption] = useState(false);
+  const [editCaptionBuffer, setEditCaptionBuffer] = useState('');
 
   const loadImages = useCallback(async () => {
     try {
@@ -34,7 +40,7 @@ export const MyImages: React.FC = () => {
     return () => window.removeEventListener('focus', loadImages);
   }, [loadImages]);
 
-  // Re-render overlay when fontScale, selectedImage, or carouselIndex changes
+  // Re-render overlay when fontScale, selectedImage, carouselIndex, or captionPosition changes
   useEffect(() => {
     if (!selectedImage || !showWithText) { setLiveOverlayUrl(null); return; }
     clearTimeout(overlayTimer.current);
@@ -49,14 +55,14 @@ export const MyImages: React.FC = () => {
           cleanUrl = selectedImage.imageUrl;
           caption = selectedImage.caption;
         }
-        const result = await overlayTextOnImage(cleanUrl, caption, fontScale);
+        const result = await overlayTextOnImage(cleanUrl, caption, fontScale, captionPosition);
         setLiveOverlayUrl(result);
       } catch {
         setLiveOverlayUrl(null);
       }
     }, 300);
     return () => clearTimeout(overlayTimer.current);
-  }, [fontScale, selectedImage, carouselIndex, showWithText]);
+  }, [fontScale, selectedImage, carouselIndex, showWithText, captionPosition]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -76,6 +82,49 @@ export const MyImages: React.FC = () => {
     setShowWithText(true);
     setFontScale(1.0);
     setLiveOverlayUrl(null);
+    setCaptionPosition('bottom');
+    setEditingCaption(false);
+  };
+
+  const startEditCaption = () => {
+    if (!selectedImage) return;
+    const caption = selectedImage.type === 'carousel' && selectedImage.slides?.[carouselIndex]
+      ? selectedImage.slides[carouselIndex].caption
+      : selectedImage.caption;
+    setEditCaptionBuffer(caption);
+    setEditingCaption(true);
+  };
+
+  const confirmEditCaption = async () => {
+    if (!selectedImage) return;
+    try {
+      const updatedImage = { ...selectedImage };
+      if (selectedImage.type === 'carousel' && updatedImage.slides?.[carouselIndex]) {
+        const updatedSlides = [...(updatedImage.slides || [])];
+        updatedSlides[carouselIndex] = { ...updatedSlides[carouselIndex], caption: editCaptionBuffer };
+        updatedImage.slides = updatedSlides;
+      } else {
+        updatedImage.caption = editCaptionBuffer;
+      }
+
+      // Update in Supabase
+      const updatePayload: any = {};
+      if (selectedImage.type === 'carousel' && updatedImage.slides) {
+        updatePayload.slides = updatedImage.slides;
+      } else {
+        updatePayload.caption = editCaptionBuffer;
+      }
+      await supabase.from('social_images').update(updatePayload).eq('id', selectedImage.id);
+
+      // Update local state
+      setSelectedImage(updatedImage);
+      setImages(prev => prev.map(i => i.id === selectedImage.id ? updatedImage : i));
+      setEditingCaption(false);
+      setLiveOverlayUrl(null); // force re-render overlay
+    } catch (e) {
+      console.error('Failed to update caption:', e);
+      alert('Falha ao atualizar legenda.');
+    }
   };
 
   const filteredImages = images.filter(img => {
@@ -259,28 +308,48 @@ export const MyImages: React.FC = () => {
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-              {/* Caption / Font Controls */}
-              <div className="flex items-center justify-between flex-wrap gap-2 bg-slate-800/50 rounded-xl p-3 border border-slate-700">
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setShowWithText(!showWithText)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 border border-slate-600 text-slate-300 hover:bg-slate-600 transition-colors">
-                    {showWithText ? <ToggleRight size={14} className="text-purple-400" /> : <ToggleLeft size={14} />}
-                    {showWithText ? 'Legenda' : 'Limpa'}
-                  </button>
+              {/* Caption / Font / Position Controls */}
+              <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setShowWithText(!showWithText)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 border border-slate-600 text-slate-300 hover:bg-slate-600 transition-colors">
+                      {showWithText ? <ToggleRight size={14} className="text-purple-400" /> : <ToggleLeft size={14} />}
+                      {showWithText ? 'Legenda' : 'Limpa'}
+                    </button>
+                  </div>
+                  <a href={getDisplayUrl()} download="image.png" target="_blank" rel="noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 transition-colors">
+                    <Download size={12} /> Baixar
+                  </a>
                 </div>
                 {showWithText && (
-                  <div className="flex items-center gap-3 flex-1 max-w-xs">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase whitespace-nowrap">Fonte</span>
-                    <input type="range" min="0.4" max="2.0" step="0.1" value={fontScale}
-                      onChange={(e) => setFontScale(parseFloat(e.target.value))}
-                      className="flex-1 h-1.5 bg-slate-700 rounded-full appearance-none cursor-pointer accent-purple-500" />
-                    <span className="text-[10px] text-slate-400 font-mono w-8 text-right">{Math.round(fontScale * 100)}%</span>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {/* Font scale */}
+                    <div className="flex items-center gap-2 flex-1 min-w-[160px]">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase whitespace-nowrap">Fonte</span>
+                      <input type="range" min="0.4" max="2.0" step="0.1" value={fontScale}
+                        onChange={(e) => setFontScale(parseFloat(e.target.value))}
+                        className="flex-1 h-1.5 bg-slate-700 rounded-full appearance-none cursor-pointer accent-purple-500" />
+                      <span className="text-[10px] text-slate-400 font-mono w-8 text-right">{Math.round(fontScale * 100)}%</span>
+                    </div>
+                    {/* Position selector */}
+                    <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-0.5 border border-slate-700">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase px-1.5">Posição</span>
+                      {([{pos: 'top' as CaptionPosition, icon: <AlignStartVertical size={13} />, label: 'Topo'},
+                        {pos: 'middle' as CaptionPosition, icon: <AlignCenterVertical size={13} />, label: 'Meio'},
+                        {pos: 'bottom' as CaptionPosition, icon: <AlignEndVertical size={13} />, label: 'Embaixo'}] as const).map(({pos, icon, label}) => (
+                        <button key={pos} onClick={() => setCaptionPosition(pos)}
+                          title={label}
+                          className={`p-1.5 rounded-md transition-all ${captionPosition === pos
+                            ? 'bg-purple-600 text-white shadow-md'
+                            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}>
+                          {icon}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
-                <a href={getDisplayUrl()} download="image.png" target="_blank" rel="noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 transition-colors">
-                  <Download size={12} /> Baixar
-                </a>
               </div>
 
               {/* Image Display */}
@@ -319,16 +388,44 @@ export const MyImages: React.FC = () => {
                 </div>
               )}
 
-              {/* Caption */}
+              {/* Editable Caption */}
               <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-                <div className="flex items-center gap-2 text-pink-400 text-xs font-bold uppercase tracking-wider mb-2">
-                  <MessageSquare size={12} />Legenda
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-pink-400 text-xs font-bold uppercase tracking-wider">
+                    <MessageSquare size={12} />Legenda
+                  </div>
+                  {!editingCaption ? (
+                    <button onClick={startEditCaption}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-slate-700 border border-slate-600 text-slate-400 hover:text-white hover:bg-slate-600 transition-colors">
+                      <Pencil size={11} /> Editar
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => setEditingCaption(false)}
+                        className="px-2 py-1 rounded-lg text-xs font-medium bg-slate-700 text-slate-400 hover:bg-slate-600 transition-colors">
+                        Cancelar
+                      </button>
+                      <button onClick={confirmEditCaption}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-600 text-white hover:bg-purple-500 transition-colors">
+                        <Check size={11} /> Salvar
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
-                  {selectedImage.type === 'carousel' && selectedImage.slides?.[carouselIndex]
-                    ? selectedImage.slides[carouselIndex].caption
-                    : selectedImage.caption}
-                </p>
+                {editingCaption ? (
+                  <textarea
+                    value={editCaptionBuffer}
+                    onChange={(e) => setEditCaptionBuffer(e.target.value)}
+                    className="w-full bg-slate-900 border border-purple-500/40 rounded-lg p-3 text-sm text-slate-200 leading-relaxed resize-none focus:ring-2 focus:ring-purple-500 outline-none min-h-[100px]"
+                    autoFocus
+                  />
+                ) : (
+                  <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
+                    {selectedImage.type === 'carousel' && selectedImage.slides?.[carouselIndex]
+                      ? selectedImage.slides[carouselIndex].caption
+                      : selectedImage.caption}
+                  </p>
+                )}
               </div>
 
               {/* Hashtags */}

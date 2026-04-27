@@ -375,7 +375,9 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines;
 }
 
-export async function overlayTextOnImage(imageSrc: string, caption: string, fontScale: number = 1.0): Promise<string> {
+export type CaptionPosition = 'bottom' | 'middle' | 'top';
+
+export async function overlayTextOnImage(imageSrc: string, caption: string, fontScale: number = 1.0, position: CaptionPosition = 'bottom'): Promise<string> {
   // Strip hashtags — only show the clean description on the image
   const cleanCaption = caption
     .replace(/#\S+/g, '')       // remove #hashtags
@@ -398,16 +400,49 @@ export async function overlayTextOnImage(imageSrc: string, caption: string, font
   const padding = w * 0.06;
   const fontSize = Math.max(18, Math.round(w * 0.055 * fontScale));
 
-  // Gradient overlay on bottom half
-  const gradientHeight = h * 0.5;
-  const gradient = ctx.createLinearGradient(0, h - gradientHeight, 0, h);
-  gradient.addColorStop(0, 'rgba(0,0,0,0)');
-  gradient.addColorStop(0.4, 'rgba(0,0,0,0.4)');
-  gradient.addColorStop(1, 'rgba(0,0,0,0.85)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, h - gradientHeight, w, gradientHeight);
+  // Text settings (needed early for line wrapping measurement)
+  ctx.font = `bold ${fontSize}px "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif`;
+  const maxWidth = w - padding * 2;
+  const lines = wrapText(ctx, cleanCaption, maxWidth);
+  const lineHeight = fontSize * 1.35;
+  const totalTextHeight = lines.length * lineHeight;
 
-  // Text settings
+  // Calculate startY and gradient based on position
+  let startY: number;
+  const gradientHeight = Math.max(h * 0.45, totalTextHeight + padding * 3);
+
+  if (position === 'top') {
+    // Gradient on top
+    const grad = ctx.createLinearGradient(0, 0, 0, gradientHeight);
+    grad.addColorStop(0, 'rgba(0,0,0,0.85)');
+    grad.addColorStop(0.6, 'rgba(0,0,0,0.4)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, gradientHeight);
+    startY = padding;
+  } else if (position === 'middle') {
+    // Gradient band in center
+    const bandTop = (h - gradientHeight) / 2;
+    const grad = ctx.createLinearGradient(0, bandTop, 0, bandTop + gradientHeight);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(0.2, 'rgba(0,0,0,0.6)');
+    grad.addColorStop(0.8, 'rgba(0,0,0,0.6)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, bandTop, w, gradientHeight);
+    startY = (h - totalTextHeight) / 2;
+  } else {
+    // Bottom (default)
+    const grad = ctx.createLinearGradient(0, h - gradientHeight, 0, h);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(0.4, 'rgba(0,0,0,0.4)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.85)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, h - gradientHeight, w, gradientHeight);
+    startY = h - totalTextHeight - padding;
+  }
+
+  // Text rendering
   ctx.fillStyle = '#ffffff';
   ctx.font = `bold ${fontSize}px "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif`;
   ctx.textAlign = 'left';
@@ -418,12 +453,6 @@ export async function overlayTextOnImage(imageSrc: string, caption: string, font
   ctx.shadowBlur = 8;
   ctx.shadowOffsetX = 2;
   ctx.shadowOffsetY = 2;
-
-  const maxWidth = w - padding * 2;
-  const lines = wrapText(ctx, cleanCaption, maxWidth);
-  const lineHeight = fontSize * 1.35;
-  const totalTextHeight = lines.length * lineHeight;
-  const startY = h - totalTextHeight - padding;
 
   for (let i = 0; i < lines.length; i++) {
     ctx.fillText(lines[i], padding, startY + i * lineHeight);
