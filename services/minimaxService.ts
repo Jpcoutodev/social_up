@@ -273,6 +273,27 @@ Respond with ONLY this JSON structure (no markdown, no fences, no extra text):
           const blob = new Blob([bytes], { type: 'audio/mpeg' });
           console.log(`[MiniMax TTS] Audio blob size: ${blob.size} bytes`);
 
+          // Calculate actual audio duration so narration is never cut off
+          let audioDuration = 0;
+          try {
+            const tempUrl = URL.createObjectURL(blob);
+            const audio = new Audio();
+            audioDuration = await new Promise<number>((resolve) => {
+              audio.addEventListener('loadedmetadata', () => {
+                const dur = isFinite(audio.duration) ? audio.duration : 0;
+                resolve(dur);
+              });
+              audio.addEventListener('error', () => resolve(0));
+              // Fallback timeout in case metadata never loads
+              setTimeout(() => resolve(0), 5000);
+              audio.src = tempUrl;
+            });
+            URL.revokeObjectURL(tempUrl);
+            console.log(`[MiniMax TTS] Measured audio duration: ${audioDuration.toFixed(2)}s (scene script: ${scene.durationInSeconds}s)`);
+          } catch (durErr) {
+            console.warn('[MiniMax TTS] Could not measure audio duration:', durErr);
+          }
+
           const { data: { user } } = await supabase.auth.getUser();
           const timestamp = Date.now();
           const audioFilename = `audio_scene${i}_${timestamp}.mp3`;
@@ -284,7 +305,12 @@ Respond with ONLY this JSON structure (no markdown, no fences, no extra text):
             console.error('[MiniMax TTS] Failed to upload audio, using blob URL:', uploadError);
             audioUrl = URL.createObjectURL(blob);
           }
-          finalDuration = Math.max(scene.durationInSeconds, 2.0);
+
+          // Use the LONGEST of: audio duration, script duration, or minimum 2s
+          // Add 0.3s buffer so the last word is never clipped
+          const effectiveAudioDuration = audioDuration > 0 ? audioDuration + 0.3 : 0;
+          finalDuration = Math.max(scene.durationInSeconds, effectiveAudioDuration, 2.0);
+          console.log(`[MiniMax TTS] Final scene duration: ${finalDuration.toFixed(2)}s`);
         } else {
           console.warn(`[MiniMax TTS] No audio data received! Full response:`, JSON.stringify(ttsJson).slice(0, 500));
         }
