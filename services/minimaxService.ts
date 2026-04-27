@@ -273,26 +273,28 @@ Respond with ONLY this JSON structure (no markdown, no fences, no extra text):
           const blob = new Blob([bytes], { type: 'audio/mpeg' });
           console.log(`[MiniMax TTS] Audio blob size: ${blob.size} bytes`);
 
-          // Calculate actual audio duration so narration is never cut off
-          let audioDuration = 0;
+          // Calculate audio duration using multiple strategies for reliability
+          // Strategy 1: Estimate from file size and bitrate (128kbps as configured)
+          // This is always available and gives a good approximation
+          const bitrateEstimate = blob.size / (128000 / 8); // bytes / (bits_per_sec / 8)
+          console.log(`[MiniMax TTS] Bitrate-estimated duration: ${bitrateEstimate.toFixed(2)}s`);
+
+          // Strategy 2: Use Web Audio API decodeAudioData (most accurate)
+          let decodedDuration = 0;
           try {
-            const tempUrl = URL.createObjectURL(blob);
-            const audio = new Audio();
-            audioDuration = await new Promise<number>((resolve) => {
-              audio.addEventListener('loadedmetadata', () => {
-                const dur = isFinite(audio.duration) ? audio.duration : 0;
-                resolve(dur);
-              });
-              audio.addEventListener('error', () => resolve(0));
-              // Fallback timeout in case metadata never loads
-              setTimeout(() => resolve(0), 5000);
-              audio.src = tempUrl;
-            });
-            URL.revokeObjectURL(tempUrl);
-            console.log(`[MiniMax TTS] Measured audio duration: ${audioDuration.toFixed(2)}s (scene script: ${scene.durationInSeconds}s)`);
-          } catch (durErr) {
-            console.warn('[MiniMax TTS] Could not measure audio duration:', durErr);
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const arrayBuffer = await blob.arrayBuffer();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            decodedDuration = audioBuffer.duration;
+            await audioContext.close();
+            console.log(`[MiniMax TTS] Decoded audio duration: ${decodedDuration.toFixed(2)}s`);
+          } catch (decodeErr) {
+            console.warn('[MiniMax TTS] decodeAudioData failed, using bitrate estimate:', decodeErr);
           }
+
+          // Use the most reliable measurement available
+          const audioDuration = decodedDuration > 0 ? decodedDuration : bitrateEstimate;
+          console.log(`[MiniMax TTS] Selected audio duration: ${audioDuration.toFixed(2)}s (scene script: ${scene.durationInSeconds}s)`);
 
           const { data: { user } } = await supabase.auth.getUser();
           const timestamp = Date.now();
@@ -307,10 +309,10 @@ Respond with ONLY this JSON structure (no markdown, no fences, no extra text):
           }
 
           // Use the LONGEST of: audio duration, script duration, or minimum 2s
-          // Add 0.3s buffer so the last word is never clipped
-          const effectiveAudioDuration = audioDuration > 0 ? audioDuration + 0.3 : 0;
+          // Add 0.8s buffer to ensure the last word is never clipped
+          const effectiveAudioDuration = audioDuration > 0 ? audioDuration + 0.8 : 0;
           finalDuration = Math.max(scene.durationInSeconds, effectiveAudioDuration, 2.0);
-          console.log(`[MiniMax TTS] Final scene duration: ${finalDuration.toFixed(2)}s`);
+          console.log(`[MiniMax TTS] Final scene duration: ${finalDuration.toFixed(2)}s (audio=${audioDuration.toFixed(2)}s + 0.8s buffer)`);
         } else {
           console.warn(`[MiniMax TTS] No audio data received! Full response:`, JSON.stringify(ttsJson).slice(0, 500));
         }
