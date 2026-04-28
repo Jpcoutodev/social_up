@@ -60,9 +60,10 @@ export const ProductPromotion: React.FC = () => {
         const captionResult = await generateSingleCaption(topic, platform);
         
         setProgress('Gerando imagem com o produto...');
+        // Use user's prompt directly — NOT the AI-generated imagePrompt
         const imgResult = await generateProductPromoImage(
           productImages[0].url,
-          captionResult.imagePrompt,
+          topic, // user's direct prompt goes to MiniMax
           platform,
           captionResult.caption,
           setProgress
@@ -77,9 +78,10 @@ export const ProductPromotion: React.FC = () => {
         const captionResult = await generateCarouselCaptions(topic, platform, slideCount);
         
         setProgress('Gerando imagens do carrossel...');
+        // Use user's topic as base prompt for each slide
         const imgsResult = await generateProductPromoCarousel(
           productImages.map(img => img.url),
-          captionResult.slides.map(s => ({ prompt: s.imagePrompt, caption: s.caption })),
+          captionResult.slides.map(s => ({ prompt: `${topic}. ${s.caption}`, caption: s.caption })),
           platform,
           (curr, total) => setProgress(`Gerando imagem ${curr}/${total}...`)
         );

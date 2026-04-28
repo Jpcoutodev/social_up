@@ -690,7 +690,7 @@ export async function generateProductPromoImage(
   onProgress?.('Enviando imagem do produto...');
   const productUrl = await uploadProductImageForReference(productImageDataUrl);
 
-  const fullPrompt = `Professional social media product promotion. ${prompt}. High quality, modern aesthetic, clean composition, no text overlays.`;
+  const fullPrompt = `IMPORTANT: You MUST use the EXACT same product shown in the reference image — same shape, color, design, brand details, and all visual characteristics. Do NOT replace, redesign, or alter the product in any way. The product from the reference image must be the central focus. Scene: ${prompt}. Professional social media product photo, high quality, modern aesthetic, clean composition, no text overlays.`;
 
   onProgress?.('Gerando imagem com IA (MiniMax subject_reference)...');
   const rawImage = await minimaxEditImageWithSubject(fullPrompt, productUrl, aspect.minimax);
@@ -728,7 +728,7 @@ export async function generateProductPromoCarousel(
 
     // Cycle through product images if fewer than prompts
     const refUrl = productUrls[i % productUrls.length];
-    const fullPrompt = `Professional product promotion slide ${i + 1}. ${prompts[i].prompt}. High quality, modern, cohesive style, no text overlays.`;
+    const fullPrompt = `IMPORTANT: You MUST use the EXACT same product shown in the reference image — same shape, color, design, brand details, and all visual characteristics. Do NOT replace or alter the product. Slide ${i + 1}: ${prompts[i].prompt}. Professional product promotion, high quality, modern, cohesive style, no text overlays.`;
 
     const rawImage = await minimaxEditImageWithSubject(fullPrompt, refUrl, aspect.minimax);
     const withTextBase64 = await overlayTextOnImage(rawImage, prompts[i].caption);
