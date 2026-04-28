@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { ImageIcon, LayoutGrid, Sparkles, Wand2, Plus, Minus, Download, Loader2, RefreshCw, Upload, X, Pencil, Check, XCircle, Hash } from 'lucide-react';
-import { generateSingleCaption, generateCarouselCaptions, getProviderLabel, generateProductPromoImage, generateProductPromoCarousel, fileToDataUrl } from '../services/captionService';
+import { ImageIcon, LayoutGrid, Sparkles, Wand2, Plus, Minus, Download, Loader2, RefreshCw, Upload, X, Pencil, Check, XCircle, Hash, User, ShoppingBag } from 'lucide-react';
+import { generateSingleCaption, generateCarouselCaptions, getProviderLabel, generateProductPromoImage, generateProductPromoCarousel, fileToDataUrl, ProductImageType } from '../services/captionService';
 import { saveImage } from '../services/imageStorageService';
 
 type ContentMode = 'image' | 'carousel';
@@ -17,6 +17,7 @@ export const ProductPromotion: React.FC = () => {
   const [platform, setPlatform] = useState<Platform>('instagram');
   const [topic, setTopic] = useState('');
   const [slideCount, setSlideCount] = useState(3);
+  const [imageType, setImageType] = useState<ProductImageType>('product');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +51,7 @@ export const ProductPromotion: React.FC = () => {
   const [carouselResult, setCarouselResult] = useState<{ imageUrl: string; imageWithTextUrl: string }[]>([]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+    const files: File[] = e.target.files ? Array.from(e.target.files) : [];
     if (!files.length) return;
 
     const newImages = await Promise.all(
@@ -141,6 +142,7 @@ export const ProductPromotion: React.FC = () => {
           singleImagePrompt, // User edited prompt
           platform,
           singleCaption, // User edited caption
+          imageType,
           setProgress
         );
         
@@ -163,6 +165,7 @@ export const ProductPromotion: React.FC = () => {
           productImages.map(img => img.url),
           carouselSlides.map(s => ({ prompt: s.imagePrompt, caption: s.caption })), // User edited prompts/captions
           platform,
+          imageType,
           (curr, total) => setProgress(`Gerando imagem ${curr}/${total}...`)
         );
         
@@ -206,6 +209,30 @@ export const ProductPromotion: React.FC = () => {
         </h2>
 
         <div className="space-y-5">
+          {/* Image Type Selector — drives which AI is used to preserve the reference */}
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-2">O que está na sua foto?</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setImageType('product')}
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all border ${imageType === 'product' ? 'bg-violet-600/15 border-violet-600/40 text-violet-300 shadow-lg shadow-violet-900/10' : 'bg-slate-900 border-slate-700 text-slate-400'}`}
+              >
+                <ShoppingBag size={16} /> Produto
+              </button>
+              <button
+                onClick={() => setImageType('person')}
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all border ${imageType === 'person' ? 'bg-orange-600/15 border-orange-600/40 text-orange-300 shadow-lg shadow-orange-900/10' : 'bg-slate-900 border-slate-700 text-slate-400'}`}
+              >
+                <User size={16} /> Pessoa
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-2">
+              {imageType === 'product'
+                ? 'Gemini preserva o produto da imagem (ideal para objetos, roupas, embalagens).'
+                : 'MiniMax preserva a pessoa da imagem (ideal para modelo, rosto, retrato).'}
+            </p>
+          </div>
+
           {/* Mode Selector */}
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-2">Formato</label>

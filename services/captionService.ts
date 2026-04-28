@@ -1,8 +1,11 @@
-import { GoogleGenAI, Type } from '@google/genai';
-import { getApiKey, getProvider, getBrandPrompt } from './geminiService';
-import { AIProvider } from '../types';
+import { getBrandPrompt } from './geminiService';
+import { callMinimax, callGemini } from '../src/lib/aiProxy';
+import { uploadImageToStorage } from '../src/lib/supabase';
+import { supabase } from '../src/lib/supabase';
 
-const MINIMAX_BASE = 'https://api.minimaxi.chat/v1';
+// ============================================================
+// Types
+// ============================================================
 
 interface SingleCaptionResult {
   caption: string;
@@ -16,75 +19,13 @@ interface CarouselResult {
   hashtags: string;
 }
 
-// --- GEMINI ---
-async function geminiGenerate(prompt: string): Promise<string> {
-  const key = getApiKey('gemini');
-  if (!key) throw new Error('Gemini API Key missing. Configure in Settings.');
-  const ai = new GoogleGenAI({ apiKey: key });
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: prompt,
-    config: { responseMimeType: 'application/json' },
-  });
-  return response.text!;
-}
+export type CaptionPosition = 'bottom' | 'middle' | 'top';
+export type ProductImageType = 'person' | 'product';
 
-// --- OPENAI ---
-async function openaiGenerate(systemPrompt: string, userPrompt: string): Promise<string> {
-  const key = getApiKey('openai');
-  if (!key) throw new Error('OpenAI API Key missing. Configure in Settings.');
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`OpenAI Error (${res.status}): ${err.error?.message || res.statusText}`);
-  }
-  const data = await res.json();
-  return data.choices[0].message.content;
-}
+// ============================================================
+// JSON helpers
+// ============================================================
 
-// --- MINIMAX ---
-async function minimaxGenerate(systemPrompt: string, userPrompt: string): Promise<string> {
-  const key = getApiKey('minimax');
-  if (!key) throw new Error('MiniMax API Key missing. Configure in Settings.');
-  const res = await fetch(`${MINIMAX_BASE}/text/chatcompletion_v2`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: 'MiniMax-Text-01',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.6,
-      max_tokens: 4096,
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`MiniMax Error (${res.status}): ${err.base_resp?.status_msg || res.statusText}`);
-  }
-  const data = await res.json();
-  const raw = data.choices?.[0]?.message?.content || '';
-  // Strip markdown fences
-  let s = raw.trim().replace(/```json\s*/gi, '').replace(/```/g, '').trim();
-  const first = s.indexOf('{');
-  const last = s.lastIndexOf('}');
-  if (first !== -1 && last > first) s = s.slice(first, last + 1);
-  return s;
-}
-
-// --- Unified helpers ---
 function extractJson(raw: string): any {
   let s = raw.trim().replace(/```json\s*/gi, '').replace(/```/g, '').trim();
   const first = s.indexOf('{');
@@ -95,10 +36,28 @@ function extractJson(raw: string): any {
 
 const SYSTEM_JSON = 'You are a JSON-only API. Respond with a single valid JSON object. No markdown, no code fences, no extra text.';
 
-// --- PUBLIC API ---
+async function minimaxChat(systemPrompt: string, userPrompt: string, metadata?: Record<string, unknown>): Promise<string> {
+  const data = await callMinimax({
+    action: 'chat',
+    payload: {
+      model: 'MiniMax-Text-01',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.6,
+      max_tokens: 4096,
+    },
+    metadata,
+  });
+  return data.choices?.[0]?.message?.content || '';
+}
+
+// ============================================================
+// Caption generation (always MiniMax)
+// ============================================================
 
 export async function generateSingleCaption(topic: string, platform: string): Promise<SingleCaptionResult> {
-  const provider = getProvider();
   const platformName = platform === 'instagram' ? 'Instagram' : 'TikTok';
   const brandPrompt = getBrandPrompt();
 
@@ -112,20 +71,11 @@ ${brandPrompt ? `\nBRAND GUIDELINES (follow strictly):\n${brandPrompt}\n` : ''}
 CRITICAL: Both the caption and the image prompt MUST be in Portuguese (Brazil).
 Return JSON: { "caption": "...", "imagePrompt": "...", "hashtags": "..." }`;
 
-  let raw: string;
-  if (provider === 'openai') {
-    raw = await openaiGenerate(SYSTEM_JSON, userPrompt);
-  } else if (provider === 'minimax') {
-    raw = await minimaxGenerate(SYSTEM_JSON, userPrompt);
-  } else {
-    raw = await geminiGenerate(userPrompt);
-  }
-
+  const raw = await minimaxChat(SYSTEM_JSON, userPrompt, { feature: 'single_caption', topic: topic.slice(0, 80) });
   return extractJson(raw) as SingleCaptionResult;
 }
 
 export async function generateCarouselCaptions(topic: string, platform: string, slideCount: number): Promise<CarouselResult> {
-  const provider = getProvider();
   const platformName = platform === 'instagram' ? 'Instagram' : 'TikTok';
   const brandPrompt = getBrandPrompt();
 
@@ -141,20 +91,11 @@ First slide = strong hook. Last slide = call-to-action.
 
 Return JSON: { "title": "...", "slides": [{ "slideNumber": 1, "caption": "...", "imagePrompt": "..." }], "hashtags": "..." }`;
 
-  let raw: string;
-  if (provider === 'openai') {
-    raw = await openaiGenerate(SYSTEM_JSON, userPrompt);
-  } else if (provider === 'minimax') {
-    raw = await minimaxGenerate(SYSTEM_JSON, userPrompt);
-  } else {
-    raw = await geminiGenerate(userPrompt);
-  }
-
+  const raw = await minimaxChat(SYSTEM_JSON, userPrompt, { feature: 'carousel_captions', topic: topic.slice(0, 80), slide_count: slideCount });
   return extractJson(raw) as CarouselResult;
 }
 
 export async function suggestTopic(platform: string, mode: 'image' | 'carousel'): Promise<string> {
-  const provider = getProvider();
   const platformName = platform === 'instagram' ? 'Instagram' : 'TikTok';
   const brandPrompt = getBrandPrompt();
   const contentType = mode === 'image' ? 'a single image post' : 'a carousel post';
@@ -164,156 +105,27 @@ ${brandPrompt ? `\nBRAND CONTEXT:\n${brandPrompt}\n` : ''}
 The suggestion should be specific, actionable, and likely to go viral. Return ONLY a JSON: { "topic": "..." }
 The topic MUST be in Portuguese (Brazil).`;
 
-  let raw: string;
-  if (provider === 'openai') {
-    raw = await openaiGenerate(SYSTEM_JSON, userPrompt);
-  } else if (provider === 'minimax') {
-    raw = await minimaxGenerate(SYSTEM_JSON, userPrompt);
-  } else {
-    raw = await geminiGenerate(userPrompt);
-  }
-
-  const result = extractJson(raw);
-  return result.topic;
+  const raw = await minimaxChat(SYSTEM_JSON, userPrompt, { feature: 'suggest_topic' });
+  return extractJson(raw).topic;
 }
 
-// --- IMAGE GENERATION ---
+export function getProviderLabel(): string {
+  return 'MiniMax T01';
+}
 
-import { uploadImageToStorage } from '../src/lib/supabase';
-import { supabase } from '../src/lib/supabase';
+// ============================================================
+// Image utilities
+// ============================================================
 
-async function geminiGenerateImage(prompt: string, aspectRatio: string): Promise<string> {
-  const key = getApiKey('gemini');
-  if (!key) throw new Error('Gemini API Key missing.');
-  const ai = new GoogleGenAI({ apiKey: key });
-
-  // Try flash first, fallback to pro
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: { parts: [{ text: prompt }] },
-      config: { imageConfig: { aspectRatio: aspectRatio as any } },
-    });
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
-    }
-  } catch (e) {
-    console.warn('Gemini Flash Image failed, trying Pro...', e);
-  }
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-image-preview',
-    contents: { parts: [{ text: prompt }] },
-    config: { imageConfig: { aspectRatio: aspectRatio as any, imageSize: '1K' } },
+export function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
-  }
-  throw new Error('Gemini failed to generate image');
 }
 
-async function openaiGenerateImage(prompt: string, size: string): Promise<string> {
-  const key = getApiKey('openai');
-  if (!key) throw new Error('OpenAI API Key missing.');
-  const res = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: 'dall-e-3',
-      prompt,
-      n: 1,
-      size,
-      response_format: 'b64_json',
-      quality: 'standard',
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`DALL-E Error: ${err.error?.message || res.statusText}`);
-  }
-  const data = await res.json();
-  if (data.data?.[0]?.b64_json) return `data:image/png;base64,${data.data[0].b64_json}`;
-  throw new Error('DALL-E returned no image');
-}
-
-async function minimaxGenerateImage(prompt: string, aspectRatio: string): Promise<string> {
-  const key = getApiKey('minimax');
-  if (!key) throw new Error('MiniMax API Key missing. Configure in Settings.');
-
-  console.log('[MiniMax Image] Generating with aspect_ratio:', aspectRatio, 'prompt:', prompt.slice(0, 80));
-
-  const res = await fetch(`${MINIMAX_BASE}/image_generation`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: 'image-01',
-      prompt,
-      aspect_ratio: aspectRatio,
-      n: 1,
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    const msg = err.base_resp?.status_msg || err.error?.message || res.statusText;
-    console.error('[MiniMax Image] API Error:', res.status, msg, err);
-    throw new Error(`MiniMax Image Error (${res.status}): ${msg}`);
-  }
-  const data = await res.json();
-  console.log('[MiniMax Image] Response keys:', Object.keys(data), 'data keys:', data.data ? Object.keys(data.data) : 'N/A');
-
-  let imgUrl = data.data?.image_urls?.[0] || data.data?.[0]?.url;
-  if (!imgUrl) {
-    console.error('[MiniMax Image] No image URL found in response:', JSON.stringify(data).slice(0, 300));
-    throw new Error('MiniMax returned no image URL in response');
-  }
-
-  // Fix mixed content
-  if (imgUrl.startsWith('http://')) imgUrl = imgUrl.replace('http://', 'https://');
-  console.log('[MiniMax Image] Got URL:', imgUrl.slice(0, 80));
-
-  // Strategy: try local dev proxy first, then Supabase Edge Function for production
-  // 1) Try local CORS proxy (works in dev)
-  try {
-    const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imgUrl)}`;
-    const imgRes = await fetch(proxyUrl);
-    if (!imgRes.ok) throw new Error(`Proxy returned ${imgRes.status}`);
-    const blob = await imgRes.blob();
-    return await blobToDataUrl(blob);
-  } catch (proxyErr) {
-    console.warn('[MiniMax] Local proxy unavailable, trying Supabase Edge Function...', proxyErr);
-  }
-
-  // 2) Use Supabase Edge Function as CORS proxy (works in production)
-  try {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const fnUrl = `${supabaseUrl}/functions/v1/proxy-image`;
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-    const proxyRes = await fetch(fnUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ url: imgUrl }),
-    });
-
-    if (!proxyRes.ok) {
-      const errText = await proxyRes.text().catch(() => '');
-      throw new Error(`Edge Function error (${proxyRes.status}): ${errText}`);
-    }
-
-    const blob = await proxyRes.blob();
-    console.log('[MiniMax] Downloaded via Supabase Edge Function, size:', blob.size);
-    return await blobToDataUrl(blob);
-  } catch (edgeErr) {
-    console.warn('[MiniMax] Edge Function failed, returning raw URL:', edgeErr);
-    return imgUrl;
-  }
-}
-
-/** Convert a Blob to a base64 data URL */
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -324,27 +136,173 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 }
 
 async function uploadImage(imageData: string, index: number): Promise<string> {
-  // If it's already a remote URL (not base64), return as-is
   if (imageData.startsWith('http://') || imageData.startsWith('https://')) {
     return imageData;
   }
   try {
     const { data: { user } } = await supabase.auth.getUser();
     const filename = `post_image_${index}_${Date.now()}.png`;
-    const publicUrl = await uploadImageToStorage(imageData, filename, user?.id);
-    return publicUrl;
-  } catch (e) {
+    return await uploadImageToStorage(imageData, filename, user?.id);
+  } catch {
     console.warn('Upload failed, using base64 fallback');
     return imageData;
   }
 }
 
-function getAspectConfig(platform: string): { gemini: string; openai: string; minimax: string } {
-  if (platform === 'tiktok') return { gemini: '9:16', openai: '1024x1792', minimax: '9:16' };
-  return { gemini: '3:4', openai: '1024x1792', minimax: '3:4' }; // Instagram portrait
+async function uploadProductReference(base64DataUrl: string): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  const filename = `product_ref_${Date.now()}.png`;
+  return await uploadImageToStorage(base64DataUrl, filename, user?.id);
 }
 
-// --- CANVAS TEXT OVERLAY ---
+function getAspectMinimax(platform: string): string {
+  return platform === 'tiktok' ? '9:16' : '3:4';
+}
+
+function getAspectGemini(platform: string): string {
+  return platform === 'tiktok' ? '9:16' : '3:4';
+}
+
+// ============================================================
+// MiniMax image generation (no reference)
+// ============================================================
+
+async function minimaxGenerateImage(prompt: string, aspectRatio: string, metadata?: Record<string, unknown>): Promise<string> {
+  const data = await callMinimax({
+    action: 'image',
+    payload: {
+      model: 'image-01',
+      prompt,
+      aspect_ratio: aspectRatio,
+      n: 1,
+    },
+    metadata,
+  });
+
+  let imgUrl: string | undefined = data.data?.image_urls?.[0] || data.data?.[0]?.url;
+  if (!imgUrl) throw new Error('MiniMax returned no image URL');
+  if (imgUrl.startsWith('http://')) imgUrl = imgUrl.replace('http://', 'https://');
+
+  return await downloadImageViaProxy(imgUrl);
+}
+
+// ============================================================
+// MiniMax image edit with subject_reference (for Person)
+// ============================================================
+
+async function minimaxEditWithSubject(prompt: string, productImageUrl: string, aspectRatio: string, metadata?: Record<string, unknown>): Promise<string> {
+  const data = await callMinimax({
+    action: 'image_edit',
+    payload: {
+      model: 'image-01',
+      prompt,
+      aspect_ratio: aspectRatio,
+      n: 1,
+      subject_reference: [
+        { type: 'character', image_file: productImageUrl },
+      ],
+    },
+    metadata,
+  });
+
+  let imgUrl: string | undefined = data.data?.image_urls?.[0] || data.data?.[0]?.url;
+  if (!imgUrl) throw new Error('MiniMax returned no image URL for subject reference edit');
+  if (imgUrl.startsWith('http://')) imgUrl = imgUrl.replace('http://', 'https://');
+
+  return await downloadImageViaProxy(imgUrl);
+}
+
+// ============================================================
+// Gemini multimodal image (for Product)
+// ============================================================
+
+async function geminiEditWithProduct(prompt: string, productImageDataUrl: string, aspectRatio: string, metadata?: Record<string, unknown>): Promise<string> {
+  // Strip data URL prefix to get pure base64 + mime
+  const match = productImageDataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  if (!match) throw new Error('Product image must be a base64 data URL');
+  const [, mimeType, base64Data] = match;
+
+  const payload = {
+    contents: [
+      {
+        parts: [
+          { text: prompt },
+          { inlineData: { mimeType, data: base64Data } },
+        ],
+      },
+    ],
+    config: {
+      imageConfig: { aspectRatio },
+    },
+  };
+
+  // Try Flash first, fallback to Pro
+  let data: any;
+  try {
+    data = await callGemini({
+      action: 'image_edit',
+      model: 'gemini-2.5-flash-image',
+      payload,
+      metadata: { ...metadata, model_attempt: 'flash' },
+    });
+  } catch (flashErr) {
+    console.warn('[Gemini] Flash image failed, trying Pro...', flashErr);
+    data = await callGemini({
+      action: 'image_edit',
+      model: 'gemini-3-pro-image-preview',
+      payload: { ...payload, config: { imageConfig: { aspectRatio, imageSize: '1K' } } },
+      metadata: { ...metadata, model_attempt: 'pro' },
+    });
+  }
+
+  for (const part of data?.candidates?.[0]?.content?.parts || []) {
+    if (part.inlineData) {
+      return `data:image/png;base64,${part.inlineData.data}`;
+    }
+  }
+  throw new Error('Gemini returned no image');
+}
+
+// ============================================================
+// CORS proxy for downloading external image URLs
+// ============================================================
+
+async function downloadImageViaProxy(imgUrl: string): Promise<string> {
+  // 1) Local dev proxy
+  try {
+    const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imgUrl)}`;
+    const imgRes = await fetch(proxyUrl);
+    if (!imgRes.ok) throw new Error(`Proxy returned ${imgRes.status}`);
+    const blob = await imgRes.blob();
+    return await blobToDataUrl(blob);
+  } catch {
+    // fall through
+  }
+
+  // 2) Supabase Edge Function proxy-image
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const fnUrl = `${supabaseUrl}/functions/v1/proxy-image`;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    const proxyRes = await fetch(fnUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ url: imgUrl }),
+    });
+    if (!proxyRes.ok) throw new Error(`Edge Function error ${proxyRes.status}`);
+    const blob = await proxyRes.blob();
+    return await blobToDataUrl(blob);
+  } catch (e) {
+    console.warn('[downloadImageViaProxy] All proxies failed, returning raw URL:', e);
+    return imgUrl;
+  }
+}
+
+// ============================================================
+// Canvas text overlay
+// ============================================================
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -375,24 +333,15 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines;
 }
 
-export type CaptionPosition = 'bottom' | 'middle' | 'top';
-
 export async function overlayTextOnImage(imageSrc: string, caption: string, fontScale: number = 1.0, position: CaptionPosition = 'bottom'): Promise<string> {
-  // Strip hashtags — only show the clean description on the image
-  const cleanCaption = caption
-    .replace(/#\S+/g, '')       // remove #hashtags
-    .replace(/\n{2,}/g, '\n')   // collapse empty lines
-    .trim();
-
-  if (!cleanCaption) return imageSrc; // nothing to overlay
+  const cleanCaption = caption.replace(/#\S+/g, '').replace(/\n{2,}/g, '\n').trim();
+  if (!cleanCaption) return imageSrc;
 
   const img = await loadImage(imageSrc);
   const canvas = document.createElement('canvas');
   canvas.width = img.naturalWidth;
   canvas.height = img.naturalHeight;
   const ctx = canvas.getContext('2d')!;
-
-  // Draw original image
   ctx.drawImage(img, 0, 0);
 
   const w = canvas.width;
@@ -400,19 +349,16 @@ export async function overlayTextOnImage(imageSrc: string, caption: string, font
   const padding = w * 0.06;
   const fontSize = Math.max(18, Math.round(w * 0.055 * fontScale));
 
-  // Text settings (needed early for line wrapping measurement)
   ctx.font = `bold ${fontSize}px "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif`;
   const maxWidth = w - padding * 2;
   const lines = wrapText(ctx, cleanCaption, maxWidth);
   const lineHeight = fontSize * 1.35;
   const totalTextHeight = lines.length * lineHeight;
 
-  // Calculate startY and gradient based on position
   let startY: number;
   const gradientHeight = Math.max(h * 0.45, totalTextHeight + padding * 3);
 
   if (position === 'top') {
-    // Gradient on top
     const grad = ctx.createLinearGradient(0, 0, 0, gradientHeight);
     grad.addColorStop(0, 'rgba(0,0,0,0.85)');
     grad.addColorStop(0.6, 'rgba(0,0,0,0.4)');
@@ -421,7 +367,6 @@ export async function overlayTextOnImage(imageSrc: string, caption: string, font
     ctx.fillRect(0, 0, w, gradientHeight);
     startY = padding;
   } else if (position === 'middle') {
-    // Gradient band in center
     const bandTop = (h - gradientHeight) / 2;
     const grad = ctx.createLinearGradient(0, bandTop, 0, bandTop + gradientHeight);
     grad.addColorStop(0, 'rgba(0,0,0,0)');
@@ -432,7 +377,6 @@ export async function overlayTextOnImage(imageSrc: string, caption: string, font
     ctx.fillRect(0, bandTop, w, gradientHeight);
     startY = (h - totalTextHeight) / 2;
   } else {
-    // Bottom (default)
     const grad = ctx.createLinearGradient(0, h - gradientHeight, 0, h);
     grad.addColorStop(0, 'rgba(0,0,0,0)');
     grad.addColorStop(0.4, 'rgba(0,0,0,0.4)');
@@ -442,13 +386,10 @@ export async function overlayTextOnImage(imageSrc: string, caption: string, font
     startY = h - totalTextHeight - padding;
   }
 
-  // Text rendering
   ctx.fillStyle = '#ffffff';
   ctx.font = `bold ${fontSize}px "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-
-  // Shadow for readability
   ctx.shadowColor = 'rgba(0,0,0,0.6)';
   ctx.shadowBlur = 8;
   ctx.shadowOffsetX = 2;
@@ -458,14 +399,15 @@ export async function overlayTextOnImage(imageSrc: string, caption: string, font
     ctx.fillText(lines[i], padding, startY + i * lineHeight);
   }
 
-  // Reset shadow
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
 
   return canvas.toDataURL('image/png');
 }
 
-// --- PUBLIC API ---
+// ============================================================
+// Public API — basic post images (no product reference)
+// ============================================================
 
 export async function generatePostImage(
   imagePrompt: string,
@@ -473,22 +415,11 @@ export async function generatePostImage(
   caption: string,
   onProgress?: (status: string) => void
 ): Promise<{ imageUrl: string; imageWithTextUrl: string }> {
-  const provider = getProvider();
-  const aspect = getAspectConfig(platform);
   const fullPrompt = `High quality, professional social media post. ${imagePrompt}. Clean design, modern aesthetic, no text overlays.`;
 
   onProgress?.('Gerando imagem...');
+  const rawImage = await minimaxGenerateImage(fullPrompt, getAspectMinimax(platform), { feature: 'post_image' });
 
-  let rawImage: string;
-  if (provider === 'openai') {
-    rawImage = await openaiGenerateImage(fullPrompt, aspect.openai);
-  } else if (provider === 'minimax') {
-    rawImage = await minimaxGenerateImage(fullPrompt, aspect.minimax);
-  } else {
-    rawImage = await geminiGenerateImage(fullPrompt, aspect.gemini);
-  }
-
-  // Overlay text on the raw base64 BEFORE uploading (avoids CORS)
   onProgress?.('Adicionando legenda...');
   const withTextBase64 = await overlayTextOnImage(rawImage, caption);
 
@@ -506,34 +437,19 @@ export async function generateCarouselImagesFromSlides(
   platform: string,
   onProgress?: (current: number, total: number) => void
 ): Promise<{ imageUrl: string; imageWithTextUrl: string }[]> {
-  const provider = getProvider();
-  const aspect = getAspectConfig(platform);
   const results: { imageUrl: string; imageWithTextUrl: string }[] = [];
 
   for (let i = 0; i < slides.length; i++) {
     onProgress?.(i + 1, slides.length);
     const fullPrompt = `High quality, professional carousel slide ${i + 1}. ${slides[i].imagePrompt}. Clean design, modern aesthetic, cohesive style, no text overlays.`;
-
-    let rawImage: string;
-    if (provider === 'openai') {
-      rawImage = await openaiGenerateImage(fullPrompt, aspect.openai);
-    } else if (provider === 'minimax') {
-      rawImage = await minimaxGenerateImage(fullPrompt, aspect.minimax);
-    } else {
-      rawImage = await geminiGenerateImage(fullPrompt, aspect.gemini);
-    }
-
-    // Overlay text on raw base64 BEFORE uploading (avoids CORS)
+    const rawImage = await minimaxGenerateImage(fullPrompt, getAspectMinimax(platform), { feature: 'carousel_image', slide_index: i });
     const withTextBase64 = await overlayTextOnImage(rawImage, slides[i].caption);
 
     const [imageUrl, imageWithTextUrl] = await Promise.all([
       uploadImage(rawImage, i * 2),
       uploadImage(withTextBase64, i * 2 + 1),
     ]);
-
     results.push({ imageUrl, imageWithTextUrl });
-
-    // Small delay between requests to avoid rate limits
     if (i < slides.length - 1) await new Promise(r => setTimeout(r, 1000));
   }
 
@@ -546,22 +462,11 @@ export async function generateSingleCarouselImage(
   platform: string,
   onProgress?: (status: string) => void
 ): Promise<{ imageUrl: string; imageWithTextUrl: string }> {
-  const provider = getProvider();
-  const aspect = getAspectConfig(platform);
   const fullPrompt = `High quality, professional carousel slide ${slideIndex + 1}. ${slide.imagePrompt}. Clean design, modern aesthetic, cohesive style, no text overlays.`;
 
   onProgress?.('Gerando imagem...');
+  const rawImage = await minimaxGenerateImage(fullPrompt, getAspectMinimax(platform), { feature: 'carousel_single', slide_index: slideIndex });
 
-  let rawImage: string;
-  if (provider === 'openai') {
-    rawImage = await openaiGenerateImage(fullPrompt, aspect.openai);
-  } else if (provider === 'minimax') {
-    rawImage = await minimaxGenerateImage(fullPrompt, aspect.minimax);
-  } else {
-    rawImage = await geminiGenerateImage(fullPrompt, aspect.gemini);
-  }
-
-  // Overlay text on raw base64 BEFORE uploading (avoids CORS)
   onProgress?.('Adicionando legenda...');
   const withTextBase64 = await overlayTextOnImage(rawImage, slide.caption);
 
@@ -574,126 +479,40 @@ export async function generateSingleCarouselImage(
   return { imageUrl, imageWithTextUrl };
 }
 
-// --- PRODUCT PROMOTION (MiniMax subject_reference) ---
-
-async function minimaxEditImageWithSubject(
-  prompt: string,
-  imageFileUrl: string,
-  aspectRatio: string
-): Promise<string> {
-  const key = getApiKey('minimax');
-  if (!key) throw new Error('MiniMax API Key missing. Configure in Settings.');
-
-  console.log('[MiniMax Edit] subject_reference prompt:', prompt.slice(0, 80), 'image:', imageFileUrl.slice(0, 60));
-
-  const res = await fetch(`${MINIMAX_BASE}/image_generation`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: 'image-01',
-      prompt,
-      aspect_ratio: aspectRatio,
-      n: 1,
-      subject_reference: [
-        {
-          type: 'character',
-          image_file: imageFileUrl,
-        },
-      ],
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    const msg = err.base_resp?.status_msg || err.error?.message || res.statusText;
-    console.error('[MiniMax Edit] API Error:', res.status, msg, err);
-    throw new Error(`MiniMax Edit Error (${res.status}): ${msg}`);
-  }
-
-  const data = await res.json();
-  let imgUrl = data.data?.image_urls?.[0] || data.data?.[0]?.url;
-  if (!imgUrl) {
-    console.error('[MiniMax Edit] No image URL in response:', JSON.stringify(data).slice(0, 300));
-    throw new Error('MiniMax returned no image URL for subject reference edit');
-  }
-
-  if (imgUrl.startsWith('http://')) imgUrl = imgUrl.replace('http://', 'https://');
-
-  // Download via proxy (same strategy as minimaxGenerateImage)
-  try {
-    const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imgUrl)}`;
-    const imgRes = await fetch(proxyUrl);
-    if (!imgRes.ok) throw new Error(`Proxy returned ${imgRes.status}`);
-    const blob = await imgRes.blob();
-    return await blobToDataUrl(blob);
-  } catch (proxyErr) {
-    console.warn('[MiniMax Edit] Local proxy unavailable, trying Supabase Edge Function...', proxyErr);
-  }
-
-  try {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const fnUrl = `${supabaseUrl}/functions/v1/proxy-image`;
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-    const proxyRes = await fetch(fnUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ url: imgUrl }),
-    });
-
-    if (!proxyRes.ok) throw new Error(`Edge Function error (${proxyRes.status})`);
-    const blob = await proxyRes.blob();
-    return await blobToDataUrl(blob);
-  } catch (edgeErr) {
-    console.warn('[MiniMax Edit] Edge Function failed, returning raw URL:', edgeErr);
-    return imgUrl;
-  }
-}
-
-/** Upload a local file (base64 data URL) to Supabase and return the public URL */
-async function uploadProductImageForReference(base64DataUrl: string): Promise<string> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    const filename = `product_ref_${Date.now()}.png`;
-    const publicUrl = await uploadImageToStorage(base64DataUrl, filename, user?.id);
-    return publicUrl;
-  } catch (e) {
-    console.warn('[ProductPromo] Upload failed, using base64 directly');
-    // MiniMax needs a URL, not base64 — so we must upload
-    throw new Error('Failed to upload product image for MiniMax reference. Check Supabase connection.');
-  }
-}
-
-/** Convert a File object to base64 data URL */
-export function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+// ============================================================
+// Public API — Product Promotion
+// imageType:
+//   - 'person'  → MiniMax subject_reference (preserves person/face)
+//   - 'product' → Gemini multimodal (preserves product object)
+// ============================================================
 
 export async function generateProductPromoImage(
   productImageDataUrl: string,
   prompt: string,
   platform: string,
   caption: string,
+  imageType: ProductImageType,
   onProgress?: (status: string) => void
 ): Promise<{ imageUrl: string; imageWithTextUrl: string }> {
-  const aspect = getAspectConfig(platform);
 
-  onProgress?.('Enviando imagem do produto...');
-  const productUrl = await uploadProductImageForReference(productImageDataUrl);
+  let rawImage: string;
 
-  const fullPrompt = `IMPORTANT: You MUST use the EXACT same product shown in the reference image — same shape, color, design, brand details, and all visual characteristics. Do NOT replace, redesign, or alter the product in any way. The product from the reference image must be the central focus. Scene: ${prompt}. Professional social media product photo, high quality, modern aesthetic, clean composition, no text overlays.`;
+  if (imageType === 'person') {
+    // MiniMax needs a public URL for the reference image
+    onProgress?.('Enviando imagem de referência...');
+    const productUrl = await uploadProductReference(productImageDataUrl);
 
-  onProgress?.('Gerando imagem com IA (MiniMax subject_reference)...');
-  const rawImage = await minimaxEditImageWithSubject(fullPrompt, productUrl, aspect.minimax);
+    const fullPrompt = `IMPORTANT: Preserve the person's face, identity, and key features from the reference image exactly. Scene: ${prompt}. Professional social media photo, high quality, modern aesthetic, clean composition, no text overlays.`;
+
+    onProgress?.('Gerando imagem com IA (MiniMax — pessoa)...');
+    rawImage = await minimaxEditWithSubject(fullPrompt, productUrl, getAspectMinimax(platform), { feature: 'product_promo_person' });
+  } else {
+    // Gemini accepts the image inline (no upload needed)
+    const fullPrompt = `Use the EXACT product shown in the reference image — preserve its shape, color, design, brand, and all visual details. Do NOT redesign or replace the product. Compose a professional social media product photo. Scene: ${prompt}. High quality, modern aesthetic, clean composition, no text overlays.`;
+
+    onProgress?.('Gerando imagem com IA (Gemini — produto)...');
+    rawImage = await geminiEditWithProduct(fullPrompt, productImageDataUrl, getAspectGemini(platform), { feature: 'product_promo_product' });
+  }
 
   onProgress?.('Adicionando legenda...');
   const withTextBase64 = await overlayTextOnImage(rawImage, caption);
@@ -708,29 +527,38 @@ export async function generateProductPromoImage(
 }
 
 export async function generateProductPromoCarousel(
-  productImages: string[], // array of base64 data URLs
+  productImages: string[],
   prompts: { prompt: string; caption: string }[],
   platform: string,
+  imageType: ProductImageType,
   onProgress?: (current: number, total: number) => void
 ): Promise<{ imageUrl: string; imageWithTextUrl: string }[]> {
-  const aspect = getAspectConfig(platform);
   const results: { imageUrl: string; imageWithTextUrl: string }[] = [];
 
-  // Upload all product images first
+  // Pre-upload product images only if MiniMax (Pessoa) — Gemini works with base64 inline
   const productUrls: string[] = [];
-  for (const img of productImages) {
-    const url = await uploadProductImageForReference(img);
-    productUrls.push(url);
+  if (imageType === 'person') {
+    for (const img of productImages) {
+      productUrls.push(await uploadProductReference(img));
+    }
   }
 
   for (let i = 0; i < prompts.length; i++) {
     onProgress?.(i + 1, prompts.length);
 
-    // Cycle through product images if fewer than prompts
-    const refUrl = productUrls[i % productUrls.length];
-    const fullPrompt = `IMPORTANT: You MUST use the EXACT same product shown in the reference image — same shape, color, design, brand details, and all visual characteristics. Do NOT replace or alter the product. Slide ${i + 1}: ${prompts[i].prompt}. Professional product promotion, high quality, modern, cohesive style, no text overlays.`;
+    const refIndex = i % productImages.length;
+    let rawImage: string;
 
-    const rawImage = await minimaxEditImageWithSubject(fullPrompt, refUrl, aspect.minimax);
+    if (imageType === 'person') {
+      const refUrl = productUrls[refIndex];
+      const fullPrompt = `IMPORTANT: Preserve the person's face, identity, and features from the reference image. Slide ${i + 1}: ${prompts[i].prompt}. Professional product promotion, high quality, modern, cohesive style, no text overlays.`;
+      rawImage = await minimaxEditWithSubject(fullPrompt, refUrl, getAspectMinimax(platform), { feature: 'product_promo_person_carousel', slide_index: i });
+    } else {
+      const productImg = productImages[refIndex];
+      const fullPrompt = `Use the EXACT product shown in the reference image — preserve its shape, color, design, brand, and all details. Do NOT redesign or replace it. Slide ${i + 1}: ${prompts[i].prompt}. Professional product promotion, high quality, modern, cohesive style, no text overlays.`;
+      rawImage = await geminiEditWithProduct(fullPrompt, productImg, getAspectGemini(platform), { feature: 'product_promo_product_carousel', slide_index: i });
+    }
+
     const withTextBase64 = await overlayTextOnImage(rawImage, prompts[i].caption);
 
     const [imageUrl, imageWithTextUrl] = await Promise.all([
@@ -739,18 +567,8 @@ export async function generateProductPromoCarousel(
     ]);
 
     results.push({ imageUrl, imageWithTextUrl });
-
     if (i < prompts.length - 1) await new Promise(r => setTimeout(r, 1000));
   }
 
   return results;
 }
-
-export function getProviderLabel(provider: AIProvider): string {
-  switch (provider) {
-    case 'openai': return 'GPT-4o';
-    case 'minimax': return 'MiniMax T01';
-    default: return 'GEMINI AI';
-  }
-}
-

@@ -1,5 +1,3 @@
-export type AIProvider = 'gemini' | 'openai' | 'minimax';
-
 export type VideoLanguage = 'pt-BR' | 'en-US' | 'es-ES';
 
 export interface Scene {

@@ -1,11 +1,11 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Player } from '@remotion/player';
 import { supabase } from '../src/lib/supabase';
-import { VideoScript, AIProvider, VideoLanguage } from '../types';
-import { generateScript, getProvider } from '../services/geminiService';
+import { VideoScript, VideoLanguage } from '../types';
+import { generateScript } from '../services/geminiService';
 import { VideoComposition } from './VideoComposition';
 import { VIDEO_WIDTH, VIDEO_HEIGHT, VIDEO_FPS } from '../constants';
-import { Wand2, Terminal, Check, Download, FileVideo, Video, XCircle, Bot, Sparkles, Globe, Zap } from 'lucide-react';
+import { Wand2, Check, Download, FileVideo, Video, XCircle, Sparkles, Globe, Zap } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const [topic, setTopic] = useState('');
@@ -19,28 +19,12 @@ export const Dashboard: React.FC = () => {
   const [script, setScript] = useState<VideoScript | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [activeProvider, setActiveProvider] = useState<AIProvider>('gemini');
 
   // Ref to hold the AbortController
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Load provider on mount and when window gets focus (in case user changed it in another tab/settings)
-  const refreshProvider = useCallback(() => {
-    setActiveProvider(getProvider());
-  }, []);
-
-  useEffect(() => {
-    refreshProvider();
-    window.addEventListener('focus', refreshProvider);
-    return () => window.removeEventListener('focus', refreshProvider);
-  }, [refreshProvider]);
-
   const handleGenerate = useCallback(async () => {
     if (!topic.trim()) return;
-
-    // Refresh provider one last time before starting
-    const currentProvider = getProvider();
-    setActiveProvider(currentProvider);
 
     // Abort previous
     if (abortControllerRef.current) {
@@ -52,7 +36,7 @@ export const Dashboard: React.FC = () => {
 
     setLoading(true);
     setProgress(0);
-    setProgressStatus(`Inicializando ${currentProvider === 'openai' ? 'OpenAI' : currentProvider === 'minimax' ? 'MiniMax' : 'Gemini'}...`);
+    setProgressStatus('Inicializando MiniMax...');
     setError(null);
     setScript(null);
     setCopied(false);
@@ -111,7 +95,7 @@ export const Dashboard: React.FC = () => {
     const fileContent = `#!/bin/bash
 # Shorts Factory Render Script
 # Topic: ${topic}
-# Engine: ${activeProvider.toUpperCase()}
+# Engine: MINIMAX
 # Language: ${language}
 # ----------------------------------------
 echo "🎬 Starting Render for: ${topic}..."
@@ -256,14 +240,9 @@ echo "✅ Render Complete! Check the 'out' folder."
                 <Video className="text-purple-400" />
                 Gerador de Conteúdo
               </h2>
-              {/* Active Provider Badge */}
-              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold border ${
-                activeProvider === 'openai' ? 'bg-green-900/30 border-green-700 text-green-400' :
-                activeProvider === 'minimax' ? 'bg-orange-900/30 border-orange-700 text-orange-400' :
-                'bg-purple-900/30 border-purple-700 text-purple-400'
-              }`}>
-                {activeProvider === 'openai' ? <Bot size={12} /> : activeProvider === 'minimax' ? <Zap size={12} /> : <Sparkles size={12} />}
-                {activeProvider === 'openai' ? 'GPT-4o + DALL-E 3' : activeProvider === 'minimax' ? 'MiniMax T01 + image-01' : 'GEMINI 2.5'}
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold border bg-orange-900/30 border-orange-700 text-orange-400">
+                <Zap size={12} />
+                MiniMax T01 + image-01
               </div>
             </div>
 
@@ -325,11 +304,7 @@ echo "✅ Render Complete! Check the 'out' folder."
                 {/* Progress Bar */}
                 <div className="w-full h-2 bg-black rounded-full overflow-hidden border border-slate-700">
                   <div
-                    className={`h-full transition-all duration-300 ease-out ${
-                      activeProvider === 'openai' ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
-                      activeProvider === 'minimax' ? 'bg-gradient-to-r from-orange-500 to-red-500' :
-                      'bg-gradient-to-r from-purple-500 to-pink-500'
-                    }`}
+                    className="h-full transition-all duration-300 ease-out bg-gradient-to-r from-orange-500 to-red-500"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -435,7 +410,7 @@ echo "✅ Render Complete! Check the 'out' folder."
             <div>
               <h2 className="text-3xl font-bold text-slate-400 mb-2">Pronto para Criar</h2>
               <p className="max-w-md mx-auto text-slate-500">
-                Digite um tema ao lado para gerar um vídeo vertical viral com <strong className="text-slate-300">{activeProvider === 'openai' ? 'OpenAI DALL-E 3' : activeProvider === 'minimax' ? 'MiniMax (Text-01 + image-01)' : 'Gemini AI'}</strong>.
+                Digite um tema ao lado para gerar um vídeo vertical viral com <strong className="text-slate-300">MiniMax (Text-01 + image-01)</strong>.
               </p>
             </div>
           </div>

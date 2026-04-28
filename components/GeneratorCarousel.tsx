@@ -1,9 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { ImageIcon, LayoutGrid, Sparkles, Wand2, Plus, Minus, Pencil, Check, XCircle, Instagram, Hash, Bot, Zap, Lightbulb, Download, Loader2, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, RefreshCw } from 'lucide-react';
-import { getProvider } from '../services/geminiService';
+import { ImageIcon, LayoutGrid, Sparkles, Wand2, Plus, Minus, Pencil, Check, XCircle, Instagram, Hash, Zap, Lightbulb, Download, Loader2, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, RefreshCw } from 'lucide-react';
 import { generateSingleCaption, generateCarouselCaptions, getProviderLabel, suggestTopic, generatePostImage, generateCarouselImagesFromSlides, generateSingleCarouselImage, overlayTextOnImage, CaptionPosition } from '../services/captionService';
 import { saveImage } from '../services/imageStorageService';
-import { AIProvider } from '../types';
 
 type ContentMode = 'image' | 'carousel';
 type Platform = 'instagram' | 'tiktok';
@@ -22,7 +20,6 @@ export const GeneratorCarousel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeProvider, setActiveProvider] = useState<AIProvider>('gemini');
 
   // Single image state
   const [singleCaption, setSingleCaption] = useState('');
@@ -56,19 +53,10 @@ export const GeneratorCarousel: React.FC = () => {
   const [liveCarouselOverlays, setLiveCarouselOverlays] = useState<string[]>([]);
   const overlayTimer = useRef<any>(null);
 
-  // Refresh provider on mount/focus
-  const refreshProvider = useCallback(() => setActiveProvider(getProvider()), []);
-  useEffect(() => {
-    refreshProvider();
-    window.addEventListener('focus', refreshProvider);
-    return () => window.removeEventListener('focus', refreshProvider);
-  }, [refreshProvider]);
-
   // --- Handlers ---
   const handleGenerateSingle = useCallback(async () => {
     if (!topic.trim()) return;
     setLoading(true); setError(null); setCaptionGenerated(false);
-    refreshProvider();
     try {
       const result = await generateSingleCaption(topic, platform);
       setSingleCaption(result.caption);
@@ -78,12 +66,11 @@ export const GeneratorCarousel: React.FC = () => {
     } catch (err: any) {
       setError(err.message || 'Failed to generate caption');
     } finally { setLoading(false); }
-  }, [topic, platform, refreshProvider]);
+  }, [topic, platform]);
 
   const handleGenerateCarousel = useCallback(async () => {
     if (!topic.trim()) return;
     setLoading(true); setError(null); setSlidesGenerated(false);
-    refreshProvider();
     try {
       const result = await generateCarouselCaptions(topic, platform, slideCount);
       setCarouselSlides(result.slides);
@@ -93,7 +80,7 @@ export const GeneratorCarousel: React.FC = () => {
     } catch (err: any) {
       setError(err.message || 'Failed to generate carousel captions');
     } finally { setLoading(false); }
-  }, [topic, platform, slideCount, refreshProvider]);
+  }, [topic, platform, slideCount]);
 
   const startEditSlide = (index: number) => { 
     setEditingSlide(index); 
@@ -117,18 +104,16 @@ export const GeneratorCarousel: React.FC = () => {
 
   const handleSuggest = useCallback(async () => {
     setSuggesting(true); setError(null);
-    refreshProvider();
     try {
       const suggested = await suggestTopic(platform, mode);
       setTopic(suggested);
     } catch (err: any) {
       setError(err.message || 'Failed to suggest topic');
     } finally { setSuggesting(false); }
-  }, [platform, mode, refreshProvider]);
+  }, [platform, mode]);
 
   const handleGenerateImage = useCallback(async () => {
     setGeneratingImages(true); setError(null);
-    refreshProvider();
     try {
       const result = await generatePostImage(singleImagePrompt, platform, singleCaption, setImageProgress);
       setSingleImageUrl(result.imageUrl);
@@ -146,11 +131,10 @@ export const GeneratorCarousel: React.FC = () => {
     } catch (err: any) {
       setError(err.message || 'Failed to generate image');
     } finally { setGeneratingImages(false); setImageProgress(''); }
-  }, [singleImagePrompt, singleCaption, singleHashtags, topic, platform, refreshProvider]);
+  }, [singleImagePrompt, singleCaption, singleHashtags, topic, platform]);
 
   const handleGenerateCarouselImages = useCallback(async () => {
     setGeneratingImages(true); setError(null); setCarouselImageUrls([]); setCarouselPreviewIndex(0);
-    refreshProvider();
     try {
       const results = await generateCarouselImagesFromSlides(
         carouselSlides.map(s => ({ imagePrompt: s.imagePrompt, caption: s.caption })),
@@ -178,12 +162,11 @@ export const GeneratorCarousel: React.FC = () => {
     } catch (err: any) {
       setError(err.message || 'Failed to generate carousel images');
     } finally { setGeneratingImages(false); setImageProgress(''); }
-  }, [carouselSlides, carouselTitle, carouselHashtags, topic, platform, refreshProvider]);
+  }, [carouselSlides, carouselTitle, carouselHashtags, topic, platform]);
 
   const handleRegenerateSlideImage = useCallback(async (idx: number) => {
     setRegeneratingSlide(idx);
     setError(null);
-    refreshProvider();
     try {
       const slide = carouselSlides[idx];
       const result = await generateSingleCarouselImage(
@@ -202,7 +185,7 @@ export const GeneratorCarousel: React.FC = () => {
       setRegeneratingSlide(null);
       setImageProgress('');
     }
-  }, [carouselSlides, platform, carouselImageUrls, refreshProvider]);
+  }, [carouselSlides, platform, carouselImageUrls]);
 
   // Re-render overlay when fontScale or captionPosition changes (debounced)
   useEffect(() => {
@@ -229,12 +212,8 @@ export const GeneratorCarousel: React.FC = () => {
   }, [fontScale, singleImageUrl, singleCaption, carouselImageUrls, carouselSlides, showWithText, captionPosition]);
 
   const isGenerated = mode === 'image' ? captionGenerated : slidesGenerated;
-  const providerBadgeClass = activeProvider === 'openai'
-    ? 'bg-green-900/30 border-green-700 text-green-400'
-    : activeProvider === 'minimax'
-      ? 'bg-orange-900/30 border-orange-700 text-orange-400'
-      : 'bg-purple-900/30 border-purple-700 text-purple-400';
-  const ProviderIcon = activeProvider === 'openai' ? Bot : activeProvider === 'minimax' ? Zap : Sparkles;
+  const providerBadgeClass = 'bg-orange-900/30 border-orange-700 text-orange-400';
+  const ProviderIcon = Zap;
 
   return (
     <div className="flex flex-col md:flex-row h-full">
@@ -250,7 +229,7 @@ export const GeneratorCarousel: React.FC = () => {
             </h2>
             <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold border ${providerBadgeClass}`}>
               <ProviderIcon size={12} />
-              {getProviderLabel(activeProvider)}
+              {getProviderLabel()}
             </div>
           </div>
 
@@ -333,7 +312,7 @@ export const GeneratorCarousel: React.FC = () => {
               <div className="bg-slate-900 rounded-lg p-4 border border-slate-700 space-y-3">
                 <div className="flex items-center justify-center gap-3 text-sm text-white font-medium">
                   <div className="w-5 h-5 border-2 border-pink-500 border-t-transparent rounded-full animate-spin" />
-                  <span>{getProviderLabel(activeProvider)} está pensando...</span>
+                  <span>{getProviderLabel()} está pensando...</span>
                 </div>
                 <div className="w-full h-1.5 bg-black rounded-full overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-pink-500 to-orange-500 rounded-full animate-pulse" style={{ width: '60%' }} />
@@ -594,8 +573,8 @@ export const GeneratorCarousel: React.FC = () => {
               <h2 className="text-3xl font-bold text-slate-400 mb-2">{mode === 'image' ? 'Criar um Post de Imagem' : 'Criar um Carrossel'}</h2>
               <p className="max-w-md mx-auto text-slate-500">
                 {mode === 'image'
-                  ? `Digite um tema para gerar uma legenda com IA usando ${getProviderLabel(activeProvider)}.`
-                  : `Digite um tema para gerar um carrossel de ${slideCount} slides com ${getProviderLabel(activeProvider)}.`}
+                  ? `Digite um tema para gerar uma legenda com IA usando ${getProviderLabel()}.`
+                  : `Digite um tema para gerar um carrossel de ${slideCount} slides com ${getProviderLabel()}.`}
               </p>
             </div>
           </div>
@@ -608,7 +587,7 @@ export const GeneratorCarousel: React.FC = () => {
               <div className={`w-16 h-16 rounded-full border-4 border-t-transparent animate-spin ${mode === 'image' ? 'border-pink-500' : 'border-orange-500'}`} />
             </div>
             <p className="text-slate-400 font-medium animate-pulse">
-              {getProviderLabel(activeProvider)} gerando {mode === 'image' ? 'legenda' : `legendas de ${slideCount} slides`}...
+              {getProviderLabel()} gerando {mode === 'image' ? 'legenda' : `legendas de ${slideCount} slides`}...
             </p>
           </div>
         )}

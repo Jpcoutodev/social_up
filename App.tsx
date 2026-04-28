@@ -9,6 +9,7 @@ import { GeneratorCarousel } from './components/GeneratorCarousel';
 import { ProductPromotion } from './components/ProductPromotion';
 import { Activity, LayoutDashboard, Settings2, Sparkles, Share2, LogOut, FileVideo, ImageIcon, FolderOpen, ShoppingBag } from 'lucide-react';
 import { supabase } from './src/lib/supabase';
+import { isAdmin } from './src/lib/admin';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -44,6 +45,13 @@ const App: React.FC = () => {
 
   if (!session) {
     return <AuthScreen onAuthSuccess={() => { }} />;
+  }
+
+  const userIsAdmin = isAdmin(session.user.email);
+
+  // Redirect non-admin away from settings tab if they somehow land there
+  if (!userIsAdmin && activeTab === 'connection') {
+    setActiveTab('dashboard');
   }
 
   return (
@@ -113,13 +121,15 @@ const App: React.FC = () => {
             description="Plataformas externas"
           />
 
-          <NavItem
-            active={activeTab === 'connection'}
-            onClick={() => setActiveTab('connection')}
-            icon={<Settings2 size={20} />}
-            label="Configurações"
-            description="API e Conexões"
-          />
+          {userIsAdmin && (
+            <NavItem
+              active={activeTab === 'connection'}
+              onClick={() => setActiveTab('connection')}
+              icon={<Settings2 size={20} />}
+              label="Configurações"
+              description="API e Conexões"
+            />
+          )}
 
         </nav>
 
@@ -180,7 +190,7 @@ const App: React.FC = () => {
           {activeTab === 'my-videos' && <MyVideos />}
           {activeTab === 'my-images' && <MyImages />}
           {activeTab === 'social' && <SocialConnection />}
-          {activeTab === 'connection' && <ConnectionStatus />}
+          {activeTab === 'connection' && userIsAdmin && <ConnectionStatus />}
         </main>
 
       </div>
