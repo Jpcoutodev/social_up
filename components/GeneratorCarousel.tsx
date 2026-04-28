@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { ImageIcon, LayoutGrid, Sparkles, Wand2, Plus, Minus, Pencil, Check, XCircle, Instagram, Hash, Bot, Zap, Lightbulb, Download, Loader2, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical } from 'lucide-react';
+import { ImageIcon, LayoutGrid, Sparkles, Wand2, Plus, Minus, Pencil, Check, XCircle, Instagram, Hash, Bot, Zap, Lightbulb, Download, Loader2, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, RefreshCw } from 'lucide-react';
 import { getProvider } from '../services/geminiService';
-import { generateSingleCaption, generateCarouselCaptions, getProviderLabel, suggestTopic, generatePostImage, generateCarouselImagesFromSlides, overlayTextOnImage, CaptionPosition } from '../services/captionService';
+import { generateSingleCaption, generateCarouselCaptions, getProviderLabel, suggestTopic, generatePostImage, generateCarouselImagesFromSlides, generateSingleCarouselImage, overlayTextOnImage, CaptionPosition } from '../services/captionService';
 import { saveImage } from '../services/imageStorageService';
 import { AIProvider } from '../types';
 
@@ -36,10 +36,12 @@ export const GeneratorCarousel: React.FC = () => {
   const [carouselHashtags, setCarouselHashtags] = useState('');
   const [editingSlide, setEditingSlide] = useState<number | null>(null);
   const [editBuffer, setEditBuffer] = useState('');
+  const [editPromptBuffer, setEditPromptBuffer] = useState('');
   const [slidesGenerated, setSlidesGenerated] = useState(false);
 
   // Image generation state
   const [generatingImages, setGeneratingImages] = useState(false);
+  const [regeneratingSlide, setRegeneratingSlide] = useState<number | null>(null);
   const [imageProgress, setImageProgress] = useState('');
   const [singleImageUrl, setSingleImageUrl] = useState<string | null>(null);
   const [singleImageWithTextUrl, setSingleImageWithTextUrl] = useState<string | null>(null);
@@ -93,14 +95,18 @@ export const GeneratorCarousel: React.FC = () => {
     } finally { setLoading(false); }
   }, [topic, platform, slideCount, refreshProvider]);
 
-  const startEditSlide = (index: number) => { setEditingSlide(index); setEditBuffer(carouselSlides[index].caption); };
+  const startEditSlide = (index: number) => { 
+    setEditingSlide(index); 
+    setEditBuffer(carouselSlides[index].caption); 
+    setEditPromptBuffer(carouselSlides[index].imagePrompt);
+  };
   const confirmEditSlide = () => {
     if (editingSlide === null) return;
     const updated = [...carouselSlides];
-    updated[editingSlide] = { ...updated[editingSlide], caption: editBuffer };
-    setCarouselSlides(updated); setEditingSlide(null); setEditBuffer('');
+    updated[editingSlide] = { ...updated[editingSlide], caption: editBuffer, imagePrompt: editPromptBuffer };
+    setCarouselSlides(updated); setEditingSlide(null); setEditBuffer(''); setEditPromptBuffer('');
   };
-  const cancelEditSlide = () => { setEditingSlide(null); setEditBuffer(''); };
+  const cancelEditSlide = () => { setEditingSlide(null); setEditBuffer(''); setEditPromptBuffer(''); };
 
   const handleReset = () => {
     setTopic(''); setSingleCaption(''); setSingleImagePrompt(''); setSingleHashtags('');
@@ -164,6 +170,7 @@ export const GeneratorCarousel: React.FC = () => {
         title: carouselTitle,
         slides: results.map((r, i) => ({
           caption: carouselSlides[i]?.caption || '',
+          imagePrompt: carouselSlides[i]?.imagePrompt || '',
           imageUrl: r.imageUrl,
           imageWithTextUrl: r.imageWithTextUrl,
         })),
@@ -172,6 +179,30 @@ export const GeneratorCarousel: React.FC = () => {
       setError(err.message || 'Failed to generate carousel images');
     } finally { setGeneratingImages(false); setImageProgress(''); }
   }, [carouselSlides, carouselTitle, carouselHashtags, topic, platform, refreshProvider]);
+
+  const handleRegenerateSlideImage = useCallback(async (idx: number) => {
+    setRegeneratingSlide(idx);
+    setError(null);
+    refreshProvider();
+    try {
+      const slide = carouselSlides[idx];
+      const result = await generateSingleCarouselImage(
+        { imagePrompt: slide.imagePrompt, caption: slide.caption },
+        idx,
+        platform,
+        (status) => setImageProgress(`${status}`)
+      );
+      
+      const newUrls = [...carouselImageUrls];
+      newUrls[idx] = result;
+      setCarouselImageUrls(newUrls);
+    } catch (err: any) {
+      setError(err.message || `Falha ao regerar slide ${idx + 1}`);
+    } finally {
+      setRegeneratingSlide(null);
+      setImageProgress('');
+    }
+  }, [carouselSlides, platform, carouselImageUrls, refreshProvider]);
 
   // Re-render overlay when fontScale or captionPosition changes (debounced)
   useEffect(() => {
@@ -409,7 +440,7 @@ export const GeneratorCarousel: React.FC = () => {
             </div>
             <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4">
               <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Prompt da Imagem (Referência IA)</div>
-              <p className="text-xs text-slate-400 leading-relaxed italic">{singleImagePrompt}</p>
+              <textarea value={singleImagePrompt} onChange={(e) => setSingleImagePrompt(e.target.value)} className="w-full bg-slate-900/60 border border-slate-600 rounded-xl p-3 text-sm text-slate-300 leading-relaxed italic resize-none focus:ring-2 focus:ring-slate-500 focus:border-transparent outline-none transition-all min-h-[80px]" />
             </div>
           </div>
         )}
@@ -506,19 +537,41 @@ export const GeneratorCarousel: React.FC = () => {
                     )}
                   </div>
                   {editingSlide === idx ? (
-                    <div className="space-y-2">
-                      <textarea value={editBuffer} onChange={(e) => setEditBuffer(e.target.value)} className="w-full bg-slate-900 border border-orange-500/40 rounded-lg p-3 text-sm text-slate-200 resize-none focus:ring-2 focus:ring-orange-500 outline-none min-h-[80px]" autoFocus />
+                    <div className="space-y-3">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Legenda do Slide</div>
+                        <textarea value={editBuffer} onChange={(e) => setEditBuffer(e.target.value)} className="w-full bg-slate-900 border border-orange-500/40 rounded-lg p-3 text-sm text-slate-200 resize-none focus:ring-2 focus:ring-orange-500 outline-none min-h-[80px]" autoFocus />
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Prompt da Imagem (Referência IA)</div>
+                        <textarea value={editPromptBuffer} onChange={(e) => setEditPromptBuffer(e.target.value)} className="w-full bg-slate-900 border border-orange-500/40 rounded-lg p-3 text-sm text-slate-300 italic resize-none focus:ring-2 focus:ring-orange-500 outline-none min-h-[60px]" />
+                      </div>
                       <div className="flex gap-2 justify-end">
                         <button onClick={cancelEditSlide} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors flex items-center gap-1"><XCircle size={12} /> Cancelar</button>
                         <button onClick={confirmEditSlide} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-orange-600 text-white hover:bg-orange-500 transition-colors flex items-center gap-1"><Check size={12} /> Salvar</button>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex gap-3">
-                      {carouselImageUrls[idx] && (
-                        <img src={carouselImageUrls[idx].imageWithTextUrl} alt={`Slide ${idx+1}`} className="w-16 h-10 rounded-lg object-cover border border-slate-600 flex-shrink-0" />
-                      )}
-                      <p className="text-sm text-slate-300 leading-relaxed">{slide.caption}</p>
+                    <div className="flex gap-3 flex-col">
+                      <div className="flex gap-3">
+                        {carouselImageUrls[idx] && (
+                          <div className="relative group/img">
+                            <img src={carouselImageUrls[idx].imageWithTextUrl} alt={`Slide ${idx+1}`} className="w-16 h-10 rounded-lg object-cover border border-slate-600 flex-shrink-0" />
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleRegenerateSlideImage(idx); }}
+                              disabled={regeneratingSlide === idx}
+                              className={`absolute inset-0 bg-black/60 items-center justify-center rounded-lg transition-all ${regeneratingSlide === idx ? 'flex' : 'hidden group-hover/img:flex'}`}
+                              title="Regerar imagem deste slide"
+                            >
+                              {regeneratingSlide === idx ? <Loader2 size={14} className="text-white animate-spin" /> : <RefreshCw size={14} className="text-white hover:text-orange-400" />}
+                            </button>
+                          </div>
+                        )}
+                        <p className="text-sm text-slate-300 leading-relaxed">{slide.caption}</p>
+                      </div>
+                      <div className="text-xs text-slate-500 italic mt-1 border-t border-slate-700/50 pt-2">
+                        <span className="font-semibold not-italic">Prompt:</span> {slide.imagePrompt}
+                      </div>
                     </div>
                   )}
                 </div>

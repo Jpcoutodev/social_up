@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ImageIcon, LayoutGrid, Trash2, Download, Eye, X, ChevronLeft, ChevronRight, Calendar, Hash, MessageSquare, Search, ToggleLeft, ToggleRight, Pencil, Check, AlignStartVertical, AlignCenterVertical, AlignEndVertical } from 'lucide-react';
+import { ImageIcon, LayoutGrid, Trash2, Download, Eye, X, ChevronLeft, ChevronRight, Calendar, Hash, MessageSquare, Search, ToggleLeft, ToggleRight, Pencil, Check, AlignStartVertical, AlignCenterVertical, AlignEndVertical, RefreshCw, Loader2 } from 'lucide-react';
 import { getSavedImages, deleteImage, SavedImage } from '../services/imageStorageService';
-import { overlayTextOnImage, CaptionPosition } from '../services/captionService';
+import { overlayTextOnImage, CaptionPosition, generateSingleCarouselImage } from '../services/captionService';
 import { supabase } from '../src/lib/supabase';
 
 type FilterType = 'all' | 'image' | 'carousel';
@@ -13,6 +13,7 @@ export const MyImages: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<SavedImage | null>(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [regeneratingSlide, setRegeneratingSlide] = useState(false);
 
   // Caption overlay controls
   const [showWithText, setShowWithText] = useState(true);
@@ -124,6 +125,48 @@ export const MyImages: React.FC = () => {
     } catch (e) {
       console.error('Failed to update caption:', e);
       alert('Falha ao atualizar legenda.');
+    }
+  };
+
+  const handleRegenerateSlide = async () => {
+    if (!selectedImage || selectedImage.type !== 'carousel' || !selectedImage.slides) return;
+    const slide = selectedImage.slides[carouselIndex];
+    if (!slide.imagePrompt) {
+      alert('Esta imagem foi salva em uma versão antiga e não possui o prompt armazenado, portanto não pode ser regerada.');
+      return;
+    }
+    
+    setRegeneratingSlide(true);
+    try {
+      const result = await generateSingleCarouselImage(
+        { imagePrompt: slide.imagePrompt, caption: slide.caption },
+        carouselIndex,
+        selectedImage.platform
+      );
+
+      const updatedSlides = [...selectedImage.slides];
+      updatedSlides[carouselIndex] = { ...slide, ...result };
+      
+      const updatePayload: any = { slides: updatedSlides };
+      const updatedImage = { ...selectedImage, slides: updatedSlides };
+
+      if (carouselIndex === 0) {
+        updatePayload.image_url = result.imageUrl;
+        updatePayload.image_with_text_url = result.imageWithTextUrl;
+        updatedImage.imageUrl = result.imageUrl;
+        updatedImage.imageWithTextUrl = result.imageWithTextUrl;
+      }
+      
+      await supabase.from('social_images').update(updatePayload).eq('id', selectedImage.id);
+
+      setSelectedImage(updatedImage);
+      setImages(prev => prev.map(i => i.id === selectedImage.id ? updatedImage : i));
+      setLiveOverlayUrl(null); // Force overlay refresh
+    } catch (e: any) {
+      console.error('Failed to regenerate slide:', e);
+      alert('Falha ao regerar a imagem do slide. Tente novamente.');
+    } finally {
+      setRegeneratingSlide(false);
     }
   };
 
@@ -358,12 +401,26 @@ export const MyImages: React.FC = () => {
                   className="w-full max-h-[50vh] object-contain rounded-xl border border-slate-700" />
               ) : (
                 <div className="space-y-3">
-                  <div className="relative">
+                  <div className="relative group/img">
                     <img
                       src={getDisplayUrl()}
                       alt={`Slide ${carouselIndex + 1}`}
-                      className="w-full max-h-[50vh] object-contain rounded-xl border border-slate-700"
+                      className={`w-full max-h-[50vh] object-contain rounded-xl border border-slate-700 transition-all ${regeneratingSlide ? 'opacity-50 blur-sm' : ''}`}
                     />
+                    {regeneratingSlide && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Loader2 size={40} className="text-purple-500 animate-spin drop-shadow-xl" />
+                      </div>
+                    )}
+                    {!regeneratingSlide && selectedImage.slides?.[carouselIndex]?.imagePrompt && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRegenerateSlide(); }}
+                        className="absolute top-4 right-4 bg-black/70 hover:bg-black/90 text-white px-3 py-2 rounded-lg flex items-center gap-2 backdrop-blur border border-white/10 opacity-0 group-hover/img:opacity-100 transition-all shadow-lg"
+                      >
+                        <RefreshCw size={16} className="text-purple-400" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Regerar Slide</span>
+                      </button>
+                    )}
                     {(selectedImage.slides?.length || 0) > 1 && (
                       <>
                         <button onClick={() => setCarouselIndex(Math.max(0, carouselIndex - 1))}

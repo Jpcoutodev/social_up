@@ -14,6 +14,7 @@ export interface SavedImage {
   title?: string;
   slides?: {
     caption: string;
+    imagePrompt?: string;
     imageUrl: string;
     imageWithTextUrl: string;
   }[];

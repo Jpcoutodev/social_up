@@ -104,12 +104,12 @@ export async function generateSingleCaption(topic: string, platform: string): Pr
 
   const userPrompt = `You are a social media expert. Based on the topic below, generate:
 1. A highly engaging caption for a single ${platformName} post image.
-2. An image prompt (in English) describing the ideal visual for this post.
+2. An image prompt describing the ideal visual for this post.
 3. 10-15 relevant hashtags.
 
 Topic: "${topic}"
 ${brandPrompt ? `\nBRAND GUIDELINES (follow strictly):\n${brandPrompt}\n` : ''}
-CRITICAL: The caption MUST be in Portuguese (Brazil). The image prompt MUST be in English.
+CRITICAL: Both the caption and the image prompt MUST be in Portuguese (Brazil).
 Return JSON: { "caption": "...", "imagePrompt": "...", "hashtags": "..." }`;
 
   let raw: string;
@@ -133,10 +133,10 @@ export async function generateCarouselCaptions(topic: string, platform: string, 
 
 Topic: "${topic}"
 ${brandPrompt ? `\nBRAND GUIDELINES (follow strictly):\n${brandPrompt}\n` : ''}
-For each slide generate: slideNumber (1-${slideCount}), caption (concise, impactful), imagePrompt (English).
+For each slide generate: slideNumber (1-${slideCount}), caption (concise, impactful), imagePrompt.
 Also generate: title (catchy), hashtags (10-15).
 
-CRITICAL: Captions and title in Portuguese (Brazil). Image prompts in English.
+CRITICAL: Captions, title, and image prompts MUST be in Portuguese (Brazil).
 First slide = strong hook. Last slide = call-to-action.
 
 Return JSON: { "title": "...", "slides": [{ "slideNumber": 1, "caption": "...", "imagePrompt": "..." }], "hashtags": "..." }`;
@@ -538,6 +538,40 @@ export async function generateCarouselImagesFromSlides(
   }
 
   return results;
+}
+
+export async function generateSingleCarouselImage(
+  slide: { imagePrompt: string; caption: string },
+  slideIndex: number,
+  platform: string,
+  onProgress?: (status: string) => void
+): Promise<{ imageUrl: string; imageWithTextUrl: string }> {
+  const provider = getProvider();
+  const aspect = getAspectConfig(platform);
+  const fullPrompt = `High quality, professional carousel slide ${slideIndex + 1}. ${slide.imagePrompt}. Clean design, modern aesthetic, cohesive style, no text overlays.`;
+
+  onProgress?.('Gerando imagem...');
+
+  let rawImage: string;
+  if (provider === 'openai') {
+    rawImage = await openaiGenerateImage(fullPrompt, aspect.openai);
+  } else if (provider === 'minimax') {
+    rawImage = await minimaxGenerateImage(fullPrompt, aspect.minimax);
+  } else {
+    rawImage = await geminiGenerateImage(fullPrompt, aspect.gemini);
+  }
+
+  // Overlay text on raw base64 BEFORE uploading (avoids CORS)
+  onProgress?.('Adicionando legenda...');
+  const withTextBase64 = await overlayTextOnImage(rawImage, slide.caption);
+
+  onProgress?.('Enviando...');
+  const [imageUrl, imageWithTextUrl] = await Promise.all([
+    uploadImage(rawImage, slideIndex * 2),
+    uploadImage(withTextBase64, slideIndex * 2 + 1),
+  ]);
+
+  return { imageUrl, imageWithTextUrl };
 }
 
 export function getProviderLabel(provider: AIProvider): string {
