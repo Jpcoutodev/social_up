@@ -6,13 +6,14 @@ import { AuthScreen } from './components/AuthScreen';
 import { MyVideos } from './components/MyVideos';
 import { MyImages } from './components/MyImages';
 import { GeneratorCarousel } from './components/GeneratorCarousel';
-import { Activity, LayoutDashboard, Settings2, Sparkles, Share2, LogOut, FileVideo, ImageIcon, FolderOpen } from 'lucide-react';
+import { ProductPromotion } from './components/ProductPromotion';
+import { Activity, LayoutDashboard, Settings2, Sparkles, Share2, LogOut, FileVideo, ImageIcon, FolderOpen, ShoppingBag } from 'lucide-react';
 import { supabase } from './src/lib/supabase';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'generator-carousel' | 'my-videos' | 'my-images' | 'connection' | 'social'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'generator-carousel' | 'product-promotion' | 'my-videos' | 'my-images' | 'connection' | 'social'>('dashboard');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -78,6 +79,14 @@ const App: React.FC = () => {
             icon={<ImageIcon size={20} />}
             label="Gerador de Imagens"
             description="Imagens e Carrosséis"
+          />
+
+          <NavItem
+            active={activeTab === 'product-promotion'}
+            onClick={() => setActiveTab('product-promotion')}
+            icon={<ShoppingBag size={20} />}
+            label="Divulgação de Produtos"
+            description="Criativos com IA"
           />
 
           <NavItem
@@ -147,6 +156,7 @@ const App: React.FC = () => {
           <h1 className="text-xl font-semibold text-white capitalize">
             {activeTab === 'dashboard' ? 'Gerador de Vídeos' :
               activeTab === 'generator-carousel' ? 'Gerador de Imagens / Carrosséis' :
+              activeTab === 'product-promotion' ? 'Divulgação de Produtos' :
               activeTab === 'social' ? 'Integrações Sociais' :
                 activeTab === 'my-videos' ? 'Meus Vídeos' :
                 activeTab === 'my-images' ? 'Minhas Imagens' : 'Configurações'}
@@ -166,6 +176,7 @@ const App: React.FC = () => {
         <main className="flex-1 overflow-hidden relative">
           {activeTab === 'dashboard' && <Dashboard />}
           {activeTab === 'generator-carousel' && <GeneratorCarousel />}
+          {activeTab === 'product-promotion' && <ProductPromotion />}
           {activeTab === 'my-videos' && <MyVideos />}
           {activeTab === 'my-images' && <MyImages />}
           {activeTab === 'social' && <SocialConnection />}

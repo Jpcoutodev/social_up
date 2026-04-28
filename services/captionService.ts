@@ -574,6 +574,178 @@ export async function generateSingleCarouselImage(
   return { imageUrl, imageWithTextUrl };
 }
 
+// --- PRODUCT PROMOTION (MiniMax subject_reference) ---
+
+async function minimaxEditImageWithSubject(
+  prompt: string,
+  imageFileUrl: string,
+  aspectRatio: string
+): Promise<string> {
+  const key = getApiKey('minimax');
+  if (!key) throw new Error('MiniMax API Key missing. Configure in Settings.');
+
+  console.log('[MiniMax Edit] subject_reference prompt:', prompt.slice(0, 80), 'image:', imageFileUrl.slice(0, 60));
+
+  const res = await fetch(`${MINIMAX_BASE}/image_generation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: 'image-01',
+      prompt,
+      aspect_ratio: aspectRatio,
+      n: 1,
+      subject_reference: [
+        {
+          type: 'character',
+          image_file: imageFileUrl,
+        },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const msg = err.base_resp?.status_msg || err.error?.message || res.statusText;
+    console.error('[MiniMax Edit] API Error:', res.status, msg, err);
+    throw new Error(`MiniMax Edit Error (${res.status}): ${msg}`);
+  }
+
+  const data = await res.json();
+  let imgUrl = data.data?.image_urls?.[0] || data.data?.[0]?.url;
+  if (!imgUrl) {
+    console.error('[MiniMax Edit] No image URL in response:', JSON.stringify(data).slice(0, 300));
+    throw new Error('MiniMax returned no image URL for subject reference edit');
+  }
+
+  if (imgUrl.startsWith('http://')) imgUrl = imgUrl.replace('http://', 'https://');
+
+  // Download via proxy (same strategy as minimaxGenerateImage)
+  try {
+    const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imgUrl)}`;
+    const imgRes = await fetch(proxyUrl);
+    if (!imgRes.ok) throw new Error(`Proxy returned ${imgRes.status}`);
+    const blob = await imgRes.blob();
+    return await blobToDataUrl(blob);
+  } catch (proxyErr) {
+    console.warn('[MiniMax Edit] Local proxy unavailable, trying Supabase Edge Function...', proxyErr);
+  }
+
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const fnUrl = `${supabaseUrl}/functions/v1/proxy-image`;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    const proxyRes = await fetch(fnUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ url: imgUrl }),
+    });
+
+    if (!proxyRes.ok) throw new Error(`Edge Function error (${proxyRes.status})`);
+    const blob = await proxyRes.blob();
+    return await blobToDataUrl(blob);
+  } catch (edgeErr) {
+    console.warn('[MiniMax Edit] Edge Function failed, returning raw URL:', edgeErr);
+    return imgUrl;
+  }
+}
+
+/** Upload a local file (base64 data URL) to Supabase and return the public URL */
+async function uploadProductImageForReference(base64DataUrl: string): Promise<string> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const filename = `product_ref_${Date.now()}.png`;
+    const publicUrl = await uploadImageToStorage(base64DataUrl, filename, user?.id);
+    return publicUrl;
+  } catch (e) {
+    console.warn('[ProductPromo] Upload failed, using base64 directly');
+    // MiniMax needs a URL, not base64 — so we must upload
+    throw new Error('Failed to upload product image for MiniMax reference. Check Supabase connection.');
+  }
+}
+
+/** Convert a File object to base64 data URL */
+export function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function generateProductPromoImage(
+  productImageDataUrl: string,
+  prompt: string,
+  platform: string,
+  caption: string,
+  onProgress?: (status: string) => void
+): Promise<{ imageUrl: string; imageWithTextUrl: string }> {
+  const aspect = getAspectConfig(platform);
+
+  onProgress?.('Enviando imagem do produto...');
+  const productUrl = await uploadProductImageForReference(productImageDataUrl);
+
+  const fullPrompt = `Professional social media product promotion. ${prompt}. High quality, modern aesthetic, clean composition, no text overlays.`;
+
+  onProgress?.('Gerando imagem com IA (MiniMax subject_reference)...');
+  const rawImage = await minimaxEditImageWithSubject(fullPrompt, productUrl, aspect.minimax);
+
+  onProgress?.('Adicionando legenda...');
+  const withTextBase64 = await overlayTextOnImage(rawImage, caption);
+
+  onProgress?.('Salvando...');
+  const [imageUrl, imageWithTextUrl] = await Promise.all([
+    uploadImage(rawImage, 0),
+    uploadImage(withTextBase64, 1),
+  ]);
+
+  return { imageUrl, imageWithTextUrl };
+}
+
+export async function generateProductPromoCarousel(
+  productImages: string[], // array of base64 data URLs
+  prompts: { prompt: string; caption: string }[],
+  platform: string,
+  onProgress?: (current: number, total: number) => void
+): Promise<{ imageUrl: string; imageWithTextUrl: string }[]> {
+  const aspect = getAspectConfig(platform);
+  const results: { imageUrl: string; imageWithTextUrl: string }[] = [];
+
+  // Upload all product images first
+  const productUrls: string[] = [];
+  for (const img of productImages) {
+    const url = await uploadProductImageForReference(img);
+    productUrls.push(url);
+  }
+
+  for (let i = 0; i < prompts.length; i++) {
+    onProgress?.(i + 1, prompts.length);
+
+    // Cycle through product images if fewer than prompts
+    const refUrl = productUrls[i % productUrls.length];
+    const fullPrompt = `Professional product promotion slide ${i + 1}. ${prompts[i].prompt}. High quality, modern, cohesive style, no text overlays.`;
+
+    const rawImage = await minimaxEditImageWithSubject(fullPrompt, refUrl, aspect.minimax);
+    const withTextBase64 = await overlayTextOnImage(rawImage, prompts[i].caption);
+
+    const [imageUrl, imageWithTextUrl] = await Promise.all([
+      uploadImage(rawImage, i * 2),
+      uploadImage(withTextBase64, i * 2 + 1),
+    ]);
+
+    results.push({ imageUrl, imageWithTextUrl });
+
+    if (i < prompts.length - 1) await new Promise(r => setTimeout(r, 1000));
+  }
+
+  return results;
+}
+
 export function getProviderLabel(provider: AIProvider): string {
   switch (provider) {
     case 'openai': return 'GPT-4o';
