@@ -28,16 +28,11 @@ create policy "Users can view their own usage"
   using (auth.uid() = user_id);
 
 -- Admin (coutodev7@gmail.com) can read all
+-- Reads email from the JWT directly (auth.users is not queryable from RLS by default)
 drop policy if exists "Admin can view all usage" on public.usage_log;
 create policy "Admin can view all usage"
   on public.usage_log for select
-  using (
-    exists (
-      select 1 from auth.users
-      where auth.users.id = auth.uid()
-        and auth.users.email = 'coutodev7@gmail.com'
-    )
-  );
+  using ((auth.jwt() ->> 'email') = 'coutodev7@gmail.com');
 
 -- Inserts happen only via Edge Functions using the service_role key
 -- (no INSERT policy needed because service_role bypasses RLS)
