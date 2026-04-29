@@ -226,14 +226,13 @@ async function geminiEditWithProduct(prompt: string, productImageDataUrl: string
     contents: [
       {
         parts: [
-          { text: prompt },
+          { text: prompt + ` (Please generate the image in ${aspectRatio} aspect ratio)` },
           { inlineData: { mimeType, data: base64Data } },
         ],
       },
     ],
     generationConfig: {
-      responseModalities: ['TEXT', 'IMAGE'],
-      imageSizeOptions: { aspectRatio },
+      responseModalities: ['IMAGE'],
     },
   };
 
