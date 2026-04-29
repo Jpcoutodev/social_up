@@ -271,6 +271,34 @@ export const ProductPromotion: React.FC = () => {
 
           {error && <div className="text-red-400 text-sm p-3 bg-red-900/20 rounded-lg border border-red-900/50">{error}</div>}
 
+          {/* Product Images Upload — always visible */}
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-2">
+              📸 Imagens do Produto (Referência)
+            </label>
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {productImages.map((img, idx) => (
+                <div key={idx} className="relative w-20 h-20 flex-shrink-0 rounded-lg border border-slate-600 overflow-hidden group">
+                  <img src={img.url} className="w-full h-full object-cover" alt="Produto" />
+                  <button onClick={() => removeProductImage(idx)} className="absolute top-1 right-1 bg-black/60 p-1 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="w-20 h-20 flex-shrink-0 rounded-lg border-2 border-dashed border-slate-600 flex flex-col items-center justify-center text-slate-400 hover:text-emerald-400 hover:border-emerald-400 transition-colors"
+              >
+                <Upload size={20} />
+                <span className="text-[10px] mt-1">Add Foto</span>
+              </button>
+              <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" multiple className="hidden" />
+            </div>
+            {productImages.length === 0 && (
+              <p className="text-[10px] text-slate-500 mt-1">Suba a foto do produto ou pessoa que será preservada na imagem gerada.</p>
+            )}
+          </div>
+
           {!isGenerated ? (
             <button 
               onClick={handleGenerateCaptions}
@@ -282,29 +310,6 @@ export const ProductPromotion: React.FC = () => {
             </button>
           ) : (
             <div className="space-y-4 pt-4 border-t border-slate-700">
-               {/* Product Images Upload (Only required before generating images) */}
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Imagens do Produto (Referência)</label>
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                  {productImages.map((img, idx) => (
-                    <div key={idx} className="relative w-20 h-20 flex-shrink-0 rounded-lg border border-slate-600 overflow-hidden group">
-                      <img src={img.url} className="w-full h-full object-cover" alt="Produto" />
-                      <button onClick={() => removeProductImage(idx)} className="absolute top-1 right-1 bg-black/60 p-1 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
-                  <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-20 h-20 flex-shrink-0 rounded-lg border-2 border-dashed border-slate-600 flex flex-col items-center justify-center text-slate-400 hover:text-emerald-400 hover:border-emerald-400 transition-colors"
-                  >
-                    <Upload size={20} />
-                    <span className="text-[10px] mt-1">Add Foto</span>
-                  </button>
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" multiple className="hidden" />
-                </div>
-              </div>
-              
               <button 
                 onClick={handleGenerateImages}
                 disabled={generatingImages || productImages.length === 0}
