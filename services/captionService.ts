@@ -231,8 +231,9 @@ async function geminiEditWithProduct(prompt: string, productImageDataUrl: string
         ],
       },
     ],
-    config: {
-      imageConfig: { aspectRatio },
+    generationConfig: {
+      responseModalities: ['TEXT', 'IMAGE'],
+      imageSizeOptions: { aspectRatio },
     },
   };
 
@@ -241,7 +242,7 @@ async function geminiEditWithProduct(prompt: string, productImageDataUrl: string
   try {
     data = await callGemini({
       action: 'image_edit',
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-2.0-flash-exp',
       payload,
       metadata: { ...metadata, model_attempt: 'flash' },
     });
@@ -249,9 +250,9 @@ async function geminiEditWithProduct(prompt: string, productImageDataUrl: string
     console.warn('[Gemini] Flash image failed, trying Pro...', flashErr);
     data = await callGemini({
       action: 'image_edit',
-      model: 'gemini-3-pro-image-preview',
-      payload: { ...payload, config: { imageConfig: { aspectRatio, imageSize: '1K' } } },
-      metadata: { ...metadata, model_attempt: 'pro' },
+      model: 'gemini-2.0-flash-exp',
+      payload,
+      metadata: { ...metadata, model_attempt: 'pro_fallback' },
     });
   }
 

@@ -78,7 +78,7 @@ export async function checkProviderConnection(provider: 'minimax' | 'gemini'): P
     }
     await callGemini({
       action: 'chat',
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.0-flash',
       payload: {
         contents: [{ parts: [{ text: 'ping' }] }],
       },
