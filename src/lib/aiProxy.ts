@@ -3,10 +3,19 @@ import { supabase } from './supabase';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 async function getAuthHeader(): Promise<string> {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-  if (!token) throw new Error('Not authenticated. Please log in again.');
-  return `Bearer ${token}`;
+  // First try refreshing the session to get a fresh access_token
+  const { data: { session } } = await supabase.auth.refreshSession();
+  if (session?.access_token) {
+    return `Bearer ${session.access_token}`;
+  }
+
+  // Fallback: try getSession (may still have a valid cached token)
+  const { data: { session: cached } } = await supabase.auth.getSession();
+  if (cached?.access_token) {
+    return `Bearer ${cached.access_token}`;
+  }
+
+  throw new Error('Not authenticated. Please log in again.');
 }
 
 interface MinimaxCallParams {
